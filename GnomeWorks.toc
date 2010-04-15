@@ -1,0 +1,60 @@
+## Interface: 30300
+## Title: GnomeWorks
+## Notes: A replacement tradeskill window
+## Author: lilsparky
+## X-Category: Tradeskill
+
+## SavedVariables: GnomeWorksDB
+## OptionalDeps: LibPeriodicTable-3.1
+## X-Revision: $Rev$
+
+## LoadManagers: AddonLoader
+## X-LoadOn-Always: delayed
+
+
+#### List of embedded libraries
+#@no-lib-strip@
+Libs\LibPeriodicTable-3.1\LibPeriodicTable-3.1.lua
+Libs\LibPeriodicTable-3.1\LibPeriodicTable-3.1-Tradeskill\LibPeriodicTable-3.1-Tradeskill.lua
+Libs\LibPeriodicTable-3.1\LibPeriodicTable-3.1-TradeskillResultMats\LibPeriodicTable-3.1-TradeskillResultMats.lua
+Libs\LibPeriodicTable-3.1\LibPeriodicTable-3.1-TradeskillLevels\LibPeriodicTable-3.1-TradeskillLevels.lua
+#@end-no-lib-strip@
+
+
+#### Localization files
+#Locale\Locale-enUS.lua
+#Locale\Locale-deDE.lua
+#Locale\Locale-zhTW.lua
+#Locale\Locale-zhCN.lua
+#Locale\Locale-koKR.lua
+#Locale\Locale-frFR.lua
+#Locale\Locale-esES.lua
+#Locale\Locale-ruRU.lua
+
+#### Main files
+GnomeWorks.lua
+MainWindow.lua
+Window.lua
+RecipeData.lua
+RecipeGroups.lua
+TradeButton.lua
+ScrollFrame.lua
+SkillList.lua
+Details.lua
+Queue.lua
+ShoppingList.lua
+Inventory.lua
+
+#### API
+API.lua
+
+
+#### hooking into different frames/events
+FrameHooks/Vendor.lua
+FrameHooks/AuctionHouse.lua
+FrameHooks/Bank.lua
+FrameHooks/GuildBank.lua
+FrameHooks/TradeWindow.lua
+
+
+
