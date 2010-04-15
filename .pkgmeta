@@ -1,0 +1,17 @@
+externals:
+    Libs/LibStub:
+	    url: svn://svn.wowace.com/wow/libstub/mainline/trunk
+    Libs/LibPeriodicTable-3.1:
+        url: svn://svn.wowace.com/wow/libperiodictable-3-1/mainline/trunk/LibPeriodicTable-3.1
+    Libs/LibPeriodicTable-3.1/LibPeriodicTable-3.1-Tradeskill:
+        url: svn://svn.wowace.com/wow/libperiodictable-3-1/mainline/trunk/LibPeriodicTable-3.1-Tradeskill
+    Libs/LibPeriodicTable-3.1/LibPeriodicTable-3.1-TradeskillResultMats:
+	    url: svn://svn.wowace.com/wow/libperiodictable-3-1/mainline/trunk/LibPeriodicTable-3.1-TradeskillResultMats
+    Libs/LibPeriodicTable-3.1/LibPeriodicTable-3.1-TradeskillLevels:
+	    url: svn://svn.wowace.com/wow/libperiodictable-3-1/mainline/trunk/LibPeriodicTable-3.1-TradeskillLevels
+	Libs/LibPeriodicTable-3.1/LibPeriodicTable-3.1-TradeskillLevels:
+	    url: svn://svn.wowace.com/wow/libperiodictable-3-1/mainline/trunk/LibPeriodicTable-3.1-TradeskillLevels
+    Libs/AceEvent-3.0:
+	    url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceEvent-3.0
+    Libs/AceTimer-3.0:
+        url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceTimer-3.0

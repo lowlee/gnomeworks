@@ -18,6 +18,8 @@ Libs\LibPeriodicTable-3.1\LibPeriodicTable-3.1.lua
 Libs\LibPeriodicTable-3.1\LibPeriodicTable-3.1-Tradeskill\LibPeriodicTable-3.1-Tradeskill.lua
 Libs\LibPeriodicTable-3.1\LibPeriodicTable-3.1-TradeskillResultMats\LibPeriodicTable-3.1-TradeskillResultMats.lua
 Libs\LibPeriodicTable-3.1\LibPeriodicTable-3.1-TradeskillLevels\LibPeriodicTable-3.1-TradeskillLevels.lua
+Libs\AceEvent-3.0\AceEvent-3.0.lua
+Libe\AceTimer-3.0\AceTimer-3.0.lua
 #@end-no-lib-strip@
 
 
