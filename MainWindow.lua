@@ -363,7 +363,7 @@ do
 				bgFile = "Interface\\AddOns\\GnomeWorks\\Art\\frameInsetSmallBackground.tga",
 				edgeFile = "Interface\\AddOns\\GnomeWorks\\Art\\frameInsetSmallBorder.tga",
 				tile = true, tileSize = 16, edgeSize = 16,
-				insets = { left = 9.5, right = 9.5, top = 9.5, bottom = 9.5 }
+				insets = { left = 9.5, right = 9.5, top = 9.5, bottom = 11.5 }
 			}
 
 		skillFrame = CreateFrame("Frame",nil,frame)

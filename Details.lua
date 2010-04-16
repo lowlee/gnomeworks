@@ -64,7 +64,7 @@ do
 
 							if GnomeWorks:VendorSellsItem(entry.id) then
 								cellFrame.text:SetTextColor(.25,1.0,.25)
-							elseif GnomeWorksDB.itemData[entry.id] then
+							elseif GnomeWorksDB.itemSource[entry.id] then
 								cellFrame.text:SetTextColor(.25,.75,1.0)
 							else
 								cellFrame.text:SetTextColor(1,1,1)
@@ -206,12 +206,40 @@ do
 	function GnomeWorks:CreateDetailFrame(parentFrame)
 		detailFrame = CreateFrame("Frame",nil,parentFrame)
 
+		detailFrame.textScroll = CreateFrame("ScrollFrame", nil, detailFrame)
+
+		detailFrame.scrollChild = CreateFrame("Frame",nil,detailFrame.textScroll)
+		detailFrame.textScroll:SetScrollChild(detailFrame.scrollChild)
+
+		GnomeWorks.Window:SetBetterBackdrop(detailFrame.textScroll,backDrop)
 		GnomeWorks.Window:SetBetterBackdrop(detailFrame,backDrop)
 
 		detailFrame:SetHeight(height)
 		detailFrame:SetWidth(detailsWidth)
 
 		detailFrame:SetPoint("BOTTOMLEFT", 20,20)
+
+
+		detailFrame.textScroll:SetPoint("BOTTOMRIGHT",detailFrame,-2,2)
+		detailFrame.textScroll:SetPoint("TOPLEFT",detailFrame,2,-35)
+
+		detailFrame.scrollChild:SetWidth(detailsWidth-4)
+		detailFrame.scrollChild:SetHeight(height+200)
+
+		detailFrame.scrollChild:SetAlpha(1)
+
+
+
+
+
+		detailFrame.scrollChild:EnableMouse(true)
+
+		detailFrame.maxScroll = 0
+
+		detailFrame.textScroll:SetVerticalScroll(0)
+
+
+		local parentFrame = detailFrame.scrollChild
 
 		local detailIcon = CreateFrame("Button",nil,detailFrame)
 
@@ -236,25 +264,14 @@ do
 
 		detailIcon:SetScript("OnLeave", GameTooltip_HideResetCursor)
 
---[[
-		<OnClick>
-			HandleModifiedItemClick(GetTradeSkillItemLink(TradeSkillFrame.selectedSkill));
-		</OnClick>
-		<OnEnter function="TradeSkillItem_OnEnter"/>
-		<OnLeave function="GameTooltip_HideResetCursor"/>
-		<OnUpdate>
-			if ( GameTooltip:IsOwned(self) ) then
-				TradeSkillItem_OnEnter(self);
-			end
-			CursorOnUpdate(self);
-		</OnUpdate>
-]]
 
 		local detailNumMadeLabel = detailIcon:CreateFontString(nil,"OVERLAY", "GameFontGreenSmall")
 		detailNumMadeLabel:SetPoint("BOTTOMRIGHT",-2,2)
 		detailNumMadeLabel:SetPoint("TOPLEFT",0,0)
 		detailNumMadeLabel:SetJustifyH("RIGHT")
 		detailNumMadeLabel:SetJustifyV("BOTTOM")
+
+
 
 		local detailNameLabel = detailFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 		detailNameLabel:SetPoint("TOPLEFT", detailIcon, "TOPRIGHT", 5,0)
@@ -263,15 +280,21 @@ do
 		detailNameLabel:SetJustifyH("LEFT")
 		detailNameLabel:SetTextColor(1,1,1)
 
-		local toolsLabel = detailFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-		toolsLabel:SetPoint("TOPLEFT", detailIcon, "BOTTOMLEFT", 0,0)
+
+
+
+	-- scrolling part below
+
+
+		local toolsLabel = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		toolsLabel:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 0,0)
 		toolsLabel:SetPoint("RIGHT", -5,0)
 		toolsLabel:SetHeight(20)
 		toolsLabel:SetJustifyH("LEFT")
 		toolsLabel:SetJustifyV("TOP")
 		toolsLabel:SetTextColor(1,1,1)
 
-		local cooldownLabel = detailFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		local cooldownLabel = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 		cooldownLabel:SetPoint("TOPLEFT", toolsLabel, "BOTTOMLEFT", 0,0)
 		cooldownLabel:SetPoint("RIGHT", -5,0)
 		cooldownLabel:SetHeight(20)
@@ -279,13 +302,24 @@ do
 		cooldownLabel:SetJustifyV("TOP")
 		cooldownLabel:SetTextColor(1,1,1)
 
-		local descriptionLabel = detailFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		local descriptionLabel = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 		descriptionLabel:SetPoint("TOPLEFT", cooldownLabel, "BOTTOMLEFT", 0,0)
-		descriptionLabel:SetPoint("RIGHT", -5,0)
-		descriptionLabel:SetHeight(20)
+		descriptionLabel:SetWidth(detailsWidth - 10)
+--		descriptionLabel:SetHeight(20)
 		descriptionLabel:SetJustifyH("LEFT")
 		descriptionLabel:SetJustifyV("TOP")
 		descriptionLabel:SetTextColor(1,1,1)
+
+
+
+		detailFrame.scrollChild:SetScript("OnEnter", function(frame)
+--print(detailFrame.maxScroll)
+			detailFrame.textScroll:SetVerticalScroll(detailFrame.maxScroll)
+		end)
+
+		detailFrame.scrollChild:SetScript("OnLeave", function(frame)
+			detailFrame.textScroll:SetVerticalScroll(0)
+		end)
 
 
 		function GnomeWorks:HideDetails()
@@ -313,6 +347,8 @@ do
 			end
 
 
+--print("vertical scroll range ", detailFrame.textScroll:GetVerticalScrollRange())
+
 			detailNameLabel:SetText(skillName)
 
 			if GetTradeSkillTools(index) then
@@ -334,12 +370,24 @@ do
 			end
 
 			if GetTradeSkillDescription(index) then
+				descriptionLabel:ClearAllPoints()
+--				descriptionLabel:SetHeight()
+				descriptionLabel:SetPoint("TOPLEFT", cooldownLabel, "BOTTOMLEFT", 0,0)
+				descriptionLabel:SetWidth(detailsWidth - 10)
+
 				descriptionLabel:SetText(GetTradeSkillDescription(index))
-				descriptionLabel:SetHeight(1000)
 				descriptionLabel:Show()
-				descriptionLabel:SetHeight(descriptionLabel:GetHeight())
+
+				local height = descriptionLabel:GetHeight()
+				descriptionLabel:SetHeight(height)
+
+				local maxHeight = cooldownLabel:GetBottom() - detailFrame.textScroll:GetBottom()
+
+				detailFrame.maxScroll = math.max(height - maxHeight,0)
+
 			else
 				descriptionLabel:Hide()
+				detailFrame.maxScroll = 0
 			end
 		end
 

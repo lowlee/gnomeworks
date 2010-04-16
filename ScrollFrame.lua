@@ -57,7 +57,7 @@ do
 
 
 	local function RowFrameOnEnter(rowFrame)
-		local scrollFrame = rowFrame:GetParent()
+		local scrollFrame = rowFrame.scrollFrame
 		scrollFrame.mouseOverIndex = rowFrame.rowIndex
 		if scrollFrame.DrawRowHighlight then
 			scrollFrame:DrawRowHighlight(rowFrame)
@@ -65,7 +65,7 @@ do
 	end
 
 	local function RowFrameOnLeave(rowFrame)
-		local scrollFrame = rowFrame:GetParent()
+		local scrollFrame = rowFrame.scrollFrame
 		scrollFrame.mouseOverIndex = nil
 		if scrollFrame.DrawRowHighlight then
 			scrollFrame:DrawRowHighlight(rowFrame)
@@ -78,12 +78,16 @@ do
 
 	local function InitRow(scrollFrame, rowIndex)
 		if not scrollFrame.rowFrame[rowIndex] then
-			scrollFrame.rowFrame[rowIndex] = CreateFrame("Frame",nil,scrollFrame)
+			local parent = (rowIndex == 0 and scrollFrame) or scrollFrame.scrollChild
 
-			local rowFrame = scrollFrame.rowFrame[rowIndex]
+			scrollFrame.rowFrame[rowIndex] = CreateFrame("Frame",nil,parent)
+
+			rowFrame = scrollFrame.rowFrame[rowIndex]
 
 			rowFrame:SetPoint("TOPLEFT",scrollFrame,"TOPLEFT",0,-(rowIndex-1)*scrollFrame.rowHeight)
 			rowFrame:SetPoint("BOTTOMRIGHT",scrollFrame,"TOPRIGHT",0,-(rowIndex)*scrollFrame.rowHeight)
+
+			rowFrame:SetFrameLevel(rowFrame:GetFrameLevel()+10)
 
 			rowFrame.rowIndex = rowIndex
 
@@ -98,6 +102,8 @@ do
 			rowFrame.highlight:SetVertexColor(.5,.5,.5, .15)
 
 			scrollFrame:InitColumns(rowFrame)
+
+			rowFrame.scrollFrame = scrollFrame
 
 			rowFrame.OnClick = RowFrameOnClick
 			rowFrame.OnEnter = RowFrameOnEnter
@@ -131,22 +137,21 @@ do
 	local function Draw(scrollFrame)
 		local DrawRow = scrollFrame.DrawRow
 
-		scrollFrame.numRows = math.floor(scrollFrame:GetHeight()/scrollFrame.rowHeight+1)
+		scrollFrame.numRows = math.floor(scrollFrame:GetHeight()/scrollFrame.rowHeight)
 
 		if scrollFrame.numRows < scrollFrame.numData then
-			local maxValue = (scrollFrame.numData - scrollFrame.numRows+1) * scrollFrame.rowHeight
+			local maxValue = math.floor(scrollFrame.numData * scrollFrame.rowHeight - scrollFrame:GetHeight()+.5)
 
 			scrollFrame.scrollBar:Show()
 			scrollFrame:SetPoint("RIGHT",scrollFrame:GetParent(),-18,0)
 			scrollFrame.scrollBar:SetMinMaxValues(0, maxValue)
-			scrollFrame.scrollBar:SetValueStep(scrollFrame.rowHeight)
+			scrollFrame.scrollBar:SetValueStep(1) --scrollFrame.rowHeight)
 
-			local frameName = scrollFrame:GetName()
-			local scrollUpButton = _G[ frameName.."ScrollBarScrollUpButton" ];
-			local scrollDownButton = _G[ frameName.."ScrollBarScrollDownButton" ];
-
+			local scrollUpButton = scrollFrame.scrollUpButton
+			local scrollDownButton = scrollFrame.scrollDownButton
 
 			-- Arrow button handling
+
 			if ( scrollFrame.scrollBar:GetValue() == 0 ) then
 				scrollUpButton:Disable();
 			else
@@ -157,18 +162,21 @@ do
 			else
 				scrollDownButton:Enable();
 			end
+
 		else
 			scrollFrame:SetPoint("RIGHT",scrollFrame:GetParent(),0,0)
 			scrollFrame.scrollBar:Hide()
 		end
 
 		if DrawRow then
-			for i=0,scrollFrame.numRows do
+			for i=0,scrollFrame.numRows+2 do
 				DrawRow(scrollFrame, i)
 			end
 
-			for i=scrollFrame.numRows,#scrollFrame.rowFrame do
-				scrollFrame.rowFrame[i]:Hide()
+			if scrollFrame.numRows+2 < #scrollFrame.rowFrame then
+				for i=scrollFrame.numRows+2,#scrollFrame.rowFrame do
+					scrollFrame.rowFrame[i]:Hide()
+				end
 			end
 		end
 	end
@@ -310,12 +318,24 @@ do
 	function lib:Create(frame, rowHeight, recycle)
 		local sf
 
-		if recycle then
+		if recycle and recycle.scrollChild then
 			sf = recycle
 		else
 			serial = serial + 1
 
 			sf = CreateFrame("ScrollFrame", "ScrollFrame"..serial, frame, "UIPanelScrollFrameTemplate")
+
+			sf.scrollChild = CreateFrame("Frame", nil, sf)
+
+
+			sf:SetScrollChild(sf.scrollChild)
+
+
+			sf:SetScript("OnScrollRangeChanged", nil)
+
+			local frameName = sf:GetName()
+			sf.scrollUpButton = _G[ frameName.."ScrollBarScrollUpButton" ];
+			sf.scrollDownButton = _G[ frameName.."ScrollBarScrollDownButton" ];
 		end
 
 		sf:SetPoint("TOP")
@@ -326,7 +346,7 @@ do
 		sf.rowHeight = rowHeight
 		sf.rowFrame = sf.rowFrame or {}
 
-		sf.numRows = math.floor(frame:GetHeight()/rowHeight)
+		sf.numRows = math.floor(frame:GetHeight()/rowHeight+1)
 
 		sf.data = {}
 		sf.dataMap = {}
@@ -381,82 +401,6 @@ do
 		scrollBarTrough.background:SetWidth(16)
 		scrollBarTrough.background:SetPoint("TOPRIGHT", frame, -1,-16)
 		scrollBarTrough.background:SetPoint("BOTTOMRIGHT", frame, -1, 16)
---		scrollBarTrough.background:SetAllPoints(sf.scrollBar)
---[[
-		scrollBarTrough.outline = scrollBarTrough:CreateTexture(nil,"BACKGROUND")
-		scrollBarTrough.outline:SetTexture(0.5,0.5,0.5,1.0)
-		scrollBarTrough.outline:SetWidth(2)
-		scrollBarTrough.outline:SetPoint("TOPRIGHT",0,16)
-		scrollBarTrough.outline:SetPoint("BOTTOMRIGHT",0,16)
-]]
-
-
-
-
---[[
-		local scrollBar = CreateFrame("Slider", "ScrollSlider"..serial, sf, "UIPanelScrollBarTemplate")
-
-		scrollBar:SetWidth(16)
-		scrollBar:SetPoint("TOPRIGHT", frame, -1, -16)
-		scrollBar:SetPoint("BOTTOMRIGHT", frame, -1, 16)
-		scrollBar:Show()
---		scrollBar:SetFrameLevel(scrollBar:GetFrameLevel()+2)
-
-		scrollBar:SetValue(1)
-		scrollBar:SetValueStep(1)
-
---		scrollBar:SetScript("OnValueChanged", function(frame, value) print(tostring(value)) end)
-
-
-		local scrollBarTrough = CreateFrame("Frame", nil, scrollBar)
-
-		scrollBarTrough:SetAllPoints(scrollBar)
-		scrollBarTrough.background = scrollBarTrough:CreateTexture(nil,"BACKGROUND")
-		scrollBarTrough.background:SetTexture(0.15,0.15,0.15,1.0)
-		scrollBarTrough.background:SetAllPoints(scrollBar)
-
-		scrollBarTrough.outline = scrollBarTrough:CreateTexture(nil,"BACKGROUND")
-		scrollBarTrough.outline:SetTexture(0.5,0.5,0.5,1.0)
-		scrollBarTrough.outline:SetWidth(2)
-		scrollBarTrough.outline:SetPoint("TOPLEFT",-1,16)
-		scrollBarTrough.outline:SetPoint("BOTTOMLEFT",-1,-16)
-
-
-		sf.scrollBar = scrollBar
-		sf.scrollBarTrough = scrollBarTrough
-]]
-	--[[
-
-
-
-		local scroll = CreateFrame("ScrollFrame", f:GetName().."ScrollFrame", f, "FauxScrollFrameTemplate");
-
-
-
-		st.scrollframe = scrollframe;
-		scrollframe:Show();
-		scrollframe:SetScript("OnHide", function(self, ...)
-			self:Show();
-		end);
-
-		scrollframe:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -4);
-		scrollframe:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -26, 3);
-
-		local scrolltrough = CreateFrame("Frame", f:GetName().."ScrollTrough", scrollframe);
-		scrolltrough:SetWidth(17);
-		scrolltrough:SetPoint("TOPRIGHT", f, "TOPRIGHT", -4, -3);
-		scrolltrough:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4);
-		scrolltrough.background = scrolltrough:CreateTexture(nil, "BACKGROUND");
-		scrolltrough.background:SetAllPoints(scrolltrough);
-		scrolltrough.background:SetTexture(0.05, 0.05, 0.05, 1.0);
-		local scrolltroughborder = CreateFrame("Frame", f:GetName().."ScrollTroughBorder", scrollframe);
-		scrolltroughborder:SetWidth(1);
-		scrolltroughborder:SetPoint("TOPRIGHT", scrolltrough, "TOPLEFT");
-		scrolltroughborder:SetPoint("BOTTOMRIGHT", scrolltrough, "BOTTOMLEFT");
-		scrolltroughborder.background = scrolltrough:CreateTexture(nil, "BACKGROUND");
-		scrolltroughborder.background:SetAllPoints(scrolltroughborder);
-		scrolltroughborder.background:SetTexture(0.5, 0.5, 0.5, 1.0);
-		]]
 
 		return sf
 	end
@@ -515,15 +459,16 @@ do
 			c:SetPoint("LEFT", sf, "LEFT", sf.headerWidth, 0)
 			c:SetPoint("RIGHT", sf, "LEFT", sf.headerWidth + sf.columnWidth[i],0)
 
+			c:SetFrameLevel(c:GetFrameLevel()-1)
 
 			self.Window:SetBetterBackdrop(c,backDrop)
 
 
+
 			sf.columnFrames[i] = c
 
---			if i ~= 2 then
-				sf.headerWidth = sf.headerWidth + sf.columnHeaders[i].width
---			end
+
+			sf.headerWidth = sf.headerWidth + sf.columnHeaders[i].width
 		end
 
 
@@ -532,21 +477,7 @@ do
 			local cols = rowFrame.cols
 			local x = 0
 
-
---			scrollFrame.columnWidth[2] = width - scrollFrame.headerWidth
-
-			if cols then
---[[
-				if rowFrame.rowIndex == 0 then
-					for i=1,#cols do
-						scrollFrame.columnFrames[i]:SetPoint("LEFT",scrollFrame, "LEFT", x,0)
-						scrollFrame.columnFrames[i]:SetPoint("RIGHT",scrollFrame, "LEFT", x+scrollFrame.columnWidth[i],0)
-
-						x = x + scrollFrame.columnWidth[i]
-					end
-				end
-]]
-			else
+			if not cols then
 				local rowHeight = scrollFrame.rowHeight
 				local header = scrollFrame.columnHeaders
 
