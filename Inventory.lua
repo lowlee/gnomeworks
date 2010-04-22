@@ -26,14 +26,16 @@ do
 		for i=1,GetMerchantNumItems() do
 			local link = GetMerchantItemLink(i)
 
-			local itemID = string.match(link, "item:(%d+)")
+			if link then
+				local itemID = string.match(link, "item:(%d+)")
 
-			itemID = tonumber(itemID)
+				itemID = tonumber(itemID)
 
-			local name, texture, price, quantity, numAvailable, isUsable, extendedCost = GetMerchantItemInfo(index)
+				local name, texture, price, quantity, numAvailable, isUsable, extendedCost = GetMerchantItemInfo(i)
 
-			if numAvailable ~= -1 then
-				GnomeWorksDB.vendorItems[itemID] = true
+				if numAvailable ~= -1 then
+					GnomeWorksDB.vendorItems[itemID] = true
+				end
 			end
 		end
 	end
@@ -272,6 +274,57 @@ do
 		end
 
 		return 0, 0, 0, 0
+	end
+
+
+
+
+	function GnomeWorks:InventoryRecipeIterationsBagOnly(recipeID, playerOverride)
+		local player = playerOverride or self.player
+		local recipe = GnomeWorks.data.recipeDB[recipeID]
+
+		if recipe and recipe.reagentData then							-- make sure that recipe is in the database before continuing
+			local numCraftable = 100000000
+
+			local vendorOnly = true
+
+			for i=1,#recipe.reagentData,1 do
+				if recipe.reagentData[i].id then
+
+					local reagentID = recipe.reagentData[i].id
+					local numNeeded = recipe.reagentData[i].numNeeded
+
+					local reagentAvailability = self:GetInventory(player, reagentID)
+
+					if self:VendorSellsItem(reagentID) then											-- if it's available from a vendor, then only worry about bag inventory
+						numCraftable = math.min(numCraftable, math.floor(reagentAvailability/numNeeded))
+					else
+						vendorOnly = nil
+
+						numCraftable = math.min(numCraftable, math.floor(reagentAvailability/numNeeded))
+					end
+
+
+					if (numCraftable == 0) then
+						break
+					end
+
+				else												-- no data means no craftability
+					numCraftable = 0
+
+--					self.dataScanned = false						-- mark the data as needing to be rescanned since a reagent id seems corrupt
+				end
+			end
+
+			recipe.unlimited = vendorOnly
+
+
+			return math.max(0,numCraftable)
+		else
+			DEFAULT_CHAT_FRAME:AddMessage("can't calc craft iterations!")
+		end
+
+		return 0
 	end
 
 

@@ -61,6 +61,7 @@ end
 do
 
 
+
 	function GnomeWorks:OnLoad()
 		if LibStub then
 			self.libPT = LibStub:GetLibrary("LibPeriodicTable-3.1", true)
@@ -74,6 +75,8 @@ do
 				end
 
 				InitDBTables(...)
+
+				GnomeWorks.data[var] = GnomeWorksDB[var]
 			end
 		end
 
@@ -98,7 +101,9 @@ do
 		end
 
 
-		InitServerDBTables(GetRealmName().."-"..UnitFactionGroup("player"), "playerData", "inventoryData")
+		InitServerDBTables(GetRealmName().."-"..UnitFactionGroup("player"), "playerData", "inventoryData", "queueData", "recipeGroupData")
+
+		GnomeWorks.data.constructionQueue = {}
 
 
 		GnomeWorks.blizzardFrameShow = TradeSkillFrame_Show
@@ -109,6 +114,8 @@ do
 		GnomeWorks:ParseSkillList()
 
 		GnomeWorks.MainWindow = GnomeWorks:CreateMainWindow()
+
+		GnomeWorks.QueueWindow = GnomeWorks:CreateQueueWindow()
 
 
 		-- reset filters

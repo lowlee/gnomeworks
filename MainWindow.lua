@@ -2,7 +2,7 @@
 
 
 
-
+local VERSION = ("$Revision$"):match("%d+")
 
 
 do
@@ -73,6 +73,37 @@ do
 		53428,			-- runeforging
 	}
 
+
+
+
+	local filterMenuFrame = CreateFrame("Frame", "GnomeWorksFilterMenuFrame", getglobal("UIParent"), "UIDropDownMenuTemplate")
+
+	local filterParameters = {
+		haveMaterials = {
+			enabled = false,
+			func = function(entry)
+				if entry and entry.craftAlt and entry.craftAlt > 0 then
+					return false
+				else
+					return true
+				end
+			end,
+		},
+	}
+
+--	local selectedPlayers = {["STRANGERS"] = true, ["OFFLINE"] = true}
+
+	local function filerSet(button, setting)
+	print("filter set")
+		filterParameters[setting].enabled = not filterParameters[setting].enabled
+		sf:Refresh()
+	end
+
+
+	local craftFilterMenu = {
+		{ text = "Have Materials", func = filterSet, arg1 = "haveMaterials", checked = function() return filterParameters.haveMaterials.enabled end},
+--		{ text = "Show Offline", func = PlayerFilterSet, arg1 = "OFFLINE", checked = function() return selectedPlayers["OFFLINE"] end },
+	}
 
 
 	local columnHeaders = {
@@ -218,12 +249,14 @@ do
 			["bgcolor"] = colorBlack,
 			["tooltipText"] = "click to sort\rright-click to filter",
 			["dataField"]= "craftBag",
-			["rightclick"] = 	function()
+			["OnClick"] = 	function(cellFrame, button)
+								if button == "RightButton" then
 									local x, y = GetCursorPosition()
 									local uiScale = UIParent:GetEffectiveScale()
 
---									EasyMenu(levelFilterMenu, GYPFilterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
-								end,
+									EasyMenu(craftFilterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
+								end
+							end,
 			["draw"] =	function (rowFrame,cellFrame,entry)
 							if entry.subGroup then
 								cellFrame.text:SetText("")
@@ -265,6 +298,38 @@ do
 --								local _,skillType,craftable = GetTradeSkillInfo(i)
 							end
 						end,
+
+			["OnEnter"] =	function (cellFrame)
+								local entry = cellFrame:GetParent().data
+
+								if entry and entry.craftAlt and entry.craftAlt > 0 then
+									GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+									GameTooltip:ClearLines()
+									GameTooltip:AddLine("Recipe Craftability",1,1,1,true)
+									GameTooltip:AddLine(GnomeWorks.player.."'s inventory")
+
+									if entry.craftBag then
+										GameTooltip:AddDoubleLine("|cffffff80bags",entry.craftBag)
+									end
+
+									if entry.craftVendor then
+										GameTooltip:AddDoubleLine("|cff80ff80vendor",entry.craftVendor)
+									end
+
+									if entry.craftBank then
+										GameTooltip:AddDoubleLine("|cffffa050bank",entry.craftBank)
+									end
+
+									if entry.craftAlt then
+										GameTooltip:AddDoubleLine("|cffff80ffalts",entry.craftAlt)
+									end
+
+									GameTooltip:Show()
+								end
+							end,
+			["OnLeave"] = 	function()
+								GameTooltip:Hide()
+							end,
 		}, -- [3]
 	}
 
@@ -376,6 +441,14 @@ do
 		sf = GnomeWorks:CreateScrollingTable(skillFrame, ScrollPaneBackdrop, columnHeaders, ResizeSkillFrame)
 
 		sf.IsEntryFiltered = function(self, entry)
+			for k,filter in pairs(filterParameters) do
+				if filter.enabled then
+					if filter.func(entry) then
+						return true
+					end
+				end
+			end
+
 			if textFilter and textFilter ~= "" then
 				for w in string.gmatch(textFilter, "%a+") do
 					if string.match(string.lower(entry.name), w, 1, true)==nil then
@@ -442,7 +515,7 @@ do
 
 	end
 
-
+--[[
 	function ItemLevelFunction(data, cols, realrow, column, sttable)
 		local itemLink = GetTradeSkillItemLink(realrow)
 
@@ -466,7 +539,7 @@ do
 
 		return skillName or "unknown: "..realrow
 	end
-
+]]
 
 	function GnomeWorks:TRADE_SKILL_SHOW(...)
 		frame:Show()
@@ -474,6 +547,7 @@ do
 		sf:Show()
 
 		self:ScanTrade()
+
 
 		local index = GetTradeSkillSelectionIndex()
 
@@ -483,6 +557,8 @@ do
 
 			self.selectedSkill = index
 		end
+
+		self:ShowQueueList()
 	end
 
 
@@ -495,6 +571,7 @@ do
 
 			local group = self:RecipeGroupFind(player, tradeID, "Blizzard", nil)
 
+			GnomeWorksDB.text = group
 			sf.data = group
 			sf:Refresh()
 			sf:Show()
@@ -622,7 +699,12 @@ do
 
 	function GnomeWorks:CreateControlFrame(frame)
 		local function AddToQueue(buttonFrame)
-			DoTradeSkill(GetTradeSkillSelectionIndex())
+--			DoTradeSkill(GetTradeSkillSelectionIndex())
+			local recipeLink = GetTradeSkillRecipeLink(GnomeWorks.selectedSkill)
+
+			local recipeID = tonumber(string.match(recipeLink, "enchant:(%d+)"))
+
+			GnomeWorks:AddToQueue(GnomeWorks.player, recipeID, 1)
 		end
 
 
@@ -664,7 +746,7 @@ do
 
 
 	function GnomeWorks:CreateMainWindow()
-		frame = self.Window:CreateResizableWindow("GnomeWorksFrame", "GnomeWorks (r0)", 600, 400, ResizeMainWindow, GnomeWorksDB.config)
+		frame = self.Window:CreateResizableWindow("GnomeWorksFrame", "GnomeWorks ("..VERSION..")", 600, 400, ResizeMainWindow, GnomeWorksDB.config)
 
 		frame:SetMinResize(500,400)
 
@@ -789,17 +871,16 @@ do
 
 		playerName:EnableMouse(true)
 
-
 		playerName:RegisterForClicks("AnyUp")
 
 		playerName:SetScript("OnClick", SelectTradeLink)
 
-
 		playerName:SetFrameLevel(playerName:GetFrameLevel()+1)
-
 
 		self.playerNameFrame = playerName
 
+
+		self.SelectTradeLink = SelectTradeLink
 
 
 		textFilter = nil

@@ -59,6 +59,7 @@ do
 	local function RowFrameOnEnter(rowFrame)
 		local scrollFrame = rowFrame.scrollFrame
 		scrollFrame.mouseOverIndex = rowFrame.rowIndex
+
 		if scrollFrame.DrawRowHighlight then
 			scrollFrame:DrawRowHighlight(rowFrame)
 		end
@@ -215,12 +216,23 @@ do
 				entry.depth = depth
 
 				if entry.subGroup then
-					map[num+index] = entry
 
-					num = num +1
+					if scrollFrame.childrenFirst then
+						if entry.subGroup.expanded then
+							num = num + FilterData(scrollFrame, entry.subGroup, depth+1, map, num+index)
+						end
 
-					if entry.subGroup.expanded then
-						num = num + FilterData(scrollFrame, entry.subGroup, depth+1, map, num+index)
+						map[num+index] = entry
+
+						num = num + 1
+					else
+						map[num+index] = entry
+
+						num = num +1
+
+						if entry.subGroup.expanded then
+							num = num + FilterData(scrollFrame, entry.subGroup, depth+1, map, num+index)
+						end
 					end
 				else
 					if not scrollFrame:IsEntryFiltered(entry) then
@@ -564,6 +576,8 @@ do
 
 		sf:SetScript("OnSizeChanged", function(frame,...) onResize(frame,...) frame:Draw() end)
 
+
+		onResize(sf,sf:GetWidth(), sf:GetHeight())
 
 		sf:Refresh()
 

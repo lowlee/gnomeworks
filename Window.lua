@@ -263,13 +263,6 @@ do
 		frame:SetScript("OnHide", function() frame:StopMovingOrSizing() frame:SavePosition() end)
 
 
-		local windowMenu = {
-			{ text = "Raise Frame", func = function() frame:SetFrameStrata("DIALOG")  frame.title:SetFrameStrata("DIALOG") end },
-			{ text = "Lower Frame", func = function() frame:SetFrameStrata("LOW") frame.title:SetFrameStrata("LOW") end },
-		}
-
-		windowMenuFrame = CreateFrame("Frame", "GYPWindowMenuFrame", getglobal("UIParent"), "UIDropDownMenuTemplate")
-
 
 		local mover = CreateFrame("Frame",nil,frame)
 		mover:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",0,0)
@@ -295,88 +288,98 @@ do
 
 		frame.mover = mover
 
-		local title = CreateFrame("Button",nil,UIParent)
-
-		local titleSize = 20
-
-		title:SetHeight(titleSize)
-
-		title.textureLeft = title:CreateTexture()
-		title.textureLeft:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTexture.tga")
-		title.textureLeft:SetPoint("LEFT",0,0)
-		title.textureLeft:SetWidth(titleSize*2)
-		title.textureLeft:SetHeight(titleSize)
-		title.textureLeft:SetTexCoord(0, 1, 0, .5)
-
-		title.textureRight = title:CreateTexture()
-		title.textureRight:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTexture.tga")
-		title.textureRight:SetPoint("RIGHT",0,0)
-		title.textureRight:SetWidth(titleSize*2)
-		title.textureRight:SetHeight(titleSize)
-		title.textureRight:SetTexCoord(0, 1.0, 0.5, 1.0)
 
 
-		title.textureCenter = title:CreateTexture()
-		title.textureCenter:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTextureCenter.tga", true)
-		title.textureCenter:SetHeight(titleSize)
---		title.textureCenter:SetWidth(30)
-		title.textureCenter:SetPoint("LEFT",titleSize*2,0)
-		title.textureCenter:SetPoint("RIGHT",-titleSize*2,0)
-		title.textureCenter:SetTexCoord(0.0, 1.0, 0.0, 1.0)
+		if windowTitle then
+			local windowMenu = {
+				{ text = "Raise Frame", func = function() frame:SetFrameStrata("DIALOG")  frame.title:SetFrameStrata("DIALOG") end },
+				{ text = "Lower Frame", func = function() frame:SetFrameStrata("LOW") frame.title:SetFrameStrata("LOW") end },
+			}
+
+			windowMenuFrame = CreateFrame("Frame", "GYPWindowMenuFrame", getglobal("UIParent"), "UIDropDownMenuTemplate")
+
+			local title = CreateFrame("Button",nil,UIParent)
+
+			local titleSize = 20
+
+			title:SetHeight(titleSize)
+
+			title.textureLeft = title:CreateTexture()
+			title.textureLeft:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTexture.tga")
+			title.textureLeft:SetPoint("LEFT",0,0)
+			title.textureLeft:SetWidth(titleSize*2)
+			title.textureLeft:SetHeight(titleSize)
+			title.textureLeft:SetTexCoord(0, 1, 0, .5)
+
+			title.textureRight = title:CreateTexture()
+			title.textureRight:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTexture.tga")
+			title.textureRight:SetPoint("RIGHT",0,0)
+			title.textureRight:SetWidth(titleSize*2)
+			title.textureRight:SetHeight(titleSize)
+			title.textureRight:SetTexCoord(0, 1.0, 0.5, 1.0)
 
 
-		title:SetPoint("BOTTOM",frame,"TOP",0,0)
+			title.textureCenter = title:CreateTexture()
+			title.textureCenter:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTextureCenter.tga", true)
+			title.textureCenter:SetHeight(titleSize)
+	--		title.textureCenter:SetWidth(30)
+			title.textureCenter:SetPoint("LEFT",titleSize*2,0)
+			title.textureCenter:SetPoint("RIGHT",-titleSize*2,0)
+			title.textureCenter:SetTexCoord(0.0, 1.0, 0.0, 1.0)
 
-		title:EnableMouse(true)
 
-		title:Hide()
+			title:SetPoint("BOTTOM",frame,"TOP",0,0)
+
+			title:EnableMouse(true)
+
+			title:Hide()
 
 
-		title:SetFrameStrata("DIALOG")
+			title:SetFrameStrata("DIALOG")
 
-		title:SetScript("OnDoubleClick", function(self, button)
-			if button == "LeftButton" then
-				PlaySound("igMainMenuOptionCheckBoxOn")
-				if frame:IsVisible() then
-					frame:Hide()
-				else
-					frame:Show()
+			title:SetScript("OnDoubleClick", function(self, button)
+				if button == "LeftButton" then
+					PlaySound("igMainMenuOptionCheckBoxOn")
+					if frame:IsVisible() then
+						frame:Hide()
+					else
+						frame:Show()
+					end
 				end
-			end
-		end)
+			end)
 
-		title:SetScript("OnMouseDown", function(self, button)
-			if button == "LeftButton" then
-				frame:StartMoving()
-			else
-				local x, y = GetCursorPosition()
-				local uiScale = UIParent:GetEffectiveScale()
+			title:SetScript("OnMouseDown", function(self, button)
+				if button == "LeftButton" then
+					frame:StartMoving()
+				else
+					local x, y = GetCursorPosition()
+					local uiScale = UIParent:GetEffectiveScale()
 
-				EasyMenu(windowMenu, windowMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
-			end
-		end)
-		title:SetScript("OnMouseUp", function() frame:StopMovingOrSizing() frame:SavePosition() end)
-		title:SetScript("OnHide", function() frame:StopMovingOrSizing() frame:SavePosition() end)
-
-
-
-		local text = title:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		text:SetJustifyH("CENTER")
-		text:SetPoint("CENTER",0,0)
-		text:SetTextColor(1,1,.4)
-		text:SetText(windowTitle)
-
-		title:SetWidth(text:GetStringWidth()+titleSize*4)
-
-
-		local w = title.textureCenter:GetWidth()
-		local h = title.textureCenter:GetHeight()
-		title.textureCenter:SetTexCoord(0.0, (w/h), 0.0, 1.0)
+					EasyMenu(windowMenu, windowMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
+				end
+			end)
+			title:SetScript("OnMouseUp", function() frame:StopMovingOrSizing() frame:SavePosition() end)
+			title:SetScript("OnHide", function() frame:StopMovingOrSizing() frame:SavePosition() end)
 
 
 
-		frame.title = title
+			local text = title:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+			text:SetJustifyH("CENTER")
+			text:SetPoint("CENTER",0,0)
+			text:SetTextColor(1,1,.4)
+			text:SetText(windowTitle)
 
+			title:SetWidth(text:GetStringWidth()+titleSize*4)
+
+
+			local w = title.textureCenter:GetWidth()
+			local h = title.textureCenter:GetHeight()
+			title.textureCenter:SetTexCoord(0.0, (w/h), 0.0, 1.0)
+
+
+
+			frame.title = title
+		end
 
 
 --[[
@@ -390,7 +393,7 @@ do
 
 		local closeButton = CreateFrame("Button",nil,frame,"UIPanelCloseButton")
 		closeButton:SetPoint("TOPRIGHT",6,6)
-		closeButton:SetScript("OnClick", function() frame:Hide() frame.title:Hide() end)
+		closeButton:SetScript("OnClick", function() frame:Hide() if frame.title then frame.title:Hide() end end)
 		closeButton:SetFrameLevel(closeButton:GetFrameLevel()+10)
 		closeButton:SetHitRectInsets(8,8,8,8)
 

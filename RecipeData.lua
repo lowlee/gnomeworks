@@ -6,7 +6,7 @@
 do
 
 	function GnomeWorks:GetRecipeName(recipeID)
-		return GetSpellInfo(recipeID)
+		return (GetSpellInfo(recipeID))
 
 --[[	if self.data.recipeDB[recipeID] then
 			return self.data.recipeDB[recipeID].name

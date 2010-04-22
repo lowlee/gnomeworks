@@ -244,24 +244,64 @@ do
 	end
 
 
-	function GnomeWorks:SelectSkill(index)
-		local skillName, skillType = GetTradeSkillInfo(index)
+	function GnomeWorks:OpenTradeLink(tradeLink)
+		local tradeString = string.match(tradeLink, "(trade:%d+:%d+:%d+:[0-9a-fA-F]+:[A-Za-z0-9+/]+)")
 
-		if skillType ~= "header" then
-			SelectTradeSkill(index)
-			self:ShowDetails(index)
-			self:ShowReagents(index)
+		if (UnitName("player")) == player then
+			local tradeName = GetSpellInfo(string.match(tradeString, "trade:(%d+)"))
 
-			self.selectedSkill = index
+			if ((GetTradeSkillLine() == "Mining" and "Smelting") or GetTradeSkillLine()) ~= tradeName or IsTradeSkillLinked() then
+				CastSpellByName(tradeName)
+			end
 		else
---			self:HideDetails()
---			self:HideReagents()
-
---			SelectTradeSkill(index)
-
+			SetItemRef(tradeString,tradeLink,"LeftButton")
 		end
 	end
 
+
+
+	function GnomeWorks:SelectSkill(index)
+		if index then
+			local skillName, skillType = GetTradeSkillInfo(index)
+
+			if skillType ~= "header" then
+				SelectTradeSkill(index)
+				self:ShowDetails(index)
+				self:ShowReagents(index)
+
+				self.selectedSkill = index
+			else
+	--			self:HideDetails()
+	--			self:HideReagents()
+
+	--			SelectTradeSkill(index)
+
+			end
+		end
+	end
+
+
+	function GnomeWorks:SelectRecipe(recipeID)
+		local player = self.player
+
+		if recipeID and self.data.recipeDB[recipeID] and self.data.skillIndexLookup[player] then
+			local tradeID = self.data.recipeDB[recipeID].tradeID
+			local skillIndex = self.data.skillIndexLookup[player][recipeID]
+
+
+			if tradeID ~= self.tradeID then
+				if player == (UnitName("player")) then
+					CastSpellByName((GetSpellInfo(tradeID)))
+				else
+					self:OpenTradeLink(self.data.linkDB[player][tradeID])
+				end
+			end
+
+			if skillIndex then
+				self:SelectSkill(skillIndex)
+			end
+		end
+	end
 
 
 	function GnomeWorks:ScanTrade()

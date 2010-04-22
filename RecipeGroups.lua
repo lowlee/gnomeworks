@@ -20,8 +20,8 @@ function GnomeWorks:RecipeGroupRename(oldName, newName)
 		local oldKey =  self.currentPlayer..":"..self.currentTrade..":"..oldName
 		local key = self.currentPlayer..":"..self.currentTrade..":"..newName
 
-		self.db.server.groupDB[key] = self.db.server.groupDB[oldKey]
-		self.db.server.groupDB[oldKey] = nil
+		self.data.recipeGroupData[key] = self.data.recipeGroupData[oldKey]
+		self.data.recipeGroupData[oldKey] = nil
 
 		for groupName, groupData in pairs(list) do
 			groupData.key = key
@@ -165,7 +165,7 @@ function GnomeWorks:RecipeGroupAddRecipe(group, recipeID, skillIndex, noDB)
 			local newEntry = {}
 
 			newEntry.recipeID = recipeID
-			newEntry.name, newEntry.spellID = self:GetRecipeName(recipeID)
+			newEntry.name = self:GetRecipeName(recipeID)
 			newEntry.skillIndex = skillIndex
 			newEntry.parent = group
 
@@ -175,7 +175,7 @@ function GnomeWorks:RecipeGroupAddRecipe(group, recipeID, skillIndex, noDB)
 		else
 			currentEntry.subGroup = subGroup
 			currentEntry.skillIndex = skillIndex
-			currentEntry.name, currentEntry.spellID = self:GetRecipeName(recipeID)
+			currentEntry.name = self:GetRecipeName(recipeID)
 			currentEntry.parent = group
 		end
 
@@ -314,7 +314,7 @@ function GnomeWorks:RecipeGroupDeleteGroup(group)
 
 		group.entries = nil
 
-		self.db.server.groupDB[group.key][group.name] = nil
+		self.data.recipeGroupData[group.key][group.name] = nil
 	end
 end
 
@@ -592,11 +592,11 @@ function GnomeWorks:RecipeGroupConstructDBString(group)
 				end
 			end
 
-			if not self.db.server.groupDB[key] then
-				self.db.server.groupDB[key] = {}
+			if not self.data.recipeGroupData[key] then
+				self.data.recipeGroupData[key] = {}
 			end
 
-			self.db.server.groupDB[key][group.name] = groupString
+			self.data.recipeGroupData[key][group.name] = groupString
 		end
 	end
 end
@@ -612,8 +612,8 @@ function GnomeWorks:RecipeGroupPruneList()
 					for name, group in pairs(perLabelList) do
 						if type(group)=="table" and name ~= OVERALL_PARENT_GROUP_NAME and group.parent == nil then
 							perLabelList[name] = nil
-							if self.db.server.groupDB and self.db.server.groupDB[player..":"..trade..":"..label] then
-								self.db.server.groupDB[player..":"..trade..":"..label][name] = nil
+							if self.data.recipeGroupData and self.data.recipeGroupData[player..":"..trade..":"..label] then
+								self.data.recipeGroupData[player..":"..trade..":"..label][name] = nil
 							end
 						end
 					end
@@ -651,7 +651,7 @@ function GnomeWorks:RecipeGroupDeconstructDBStrings()
 	local groupNames = {}
 	local serial = 1
 
-	for key, groupList in pairs(self.db.server.groupDB) do
+	for key, groupList in pairs(self.data.recipeGroupData) do
 		local player, tradeID, label = string.split(":", key)
 		tradeID = tonumber(tradeID)
 
@@ -673,7 +673,7 @@ function GnomeWorks:RecipeGroupDeconstructDBStrings()
 	end
 
 
-	for key, groupList in pairs(self.db.server.groupDB) do
+	for key, groupList in pairs(self.data.recipeGroupData) do
 		local player, tradeID, label = string.split(":", key)
 
 		tradeID = tonumber(tradeID)
@@ -1050,7 +1050,7 @@ function GnomeWorks:RecipeGroupOpDelete()
 		local label = self.currentGroupLabel
 
 		self.data.groupList[player][tradeID][label] = nil
-		self.db.server.groupDB[player..":"..tradeID..":"..label] = nil
+		self.data.recipeGroupData[player..":"..tradeID..":"..label] = nil
 
 		collectgarbage("collect")
 

@@ -312,6 +312,15 @@ do
 
 
 
+		local descriptionTextSizeOnly = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		descriptionTextSizeOnly:SetPoint("TOPLEFT", cooldownLabel, "BOTTOMLEFT", 0,0)
+		descriptionTextSizeOnly:SetWidth(detailsWidth - 10)
+		descriptionTextSizeOnly:SetJustifyH("LEFT")
+		descriptionTextSizeOnly:SetJustifyV("TOP")
+		descriptionTextSizeOnly:Hide()
+
+
+
 		detailFrame.scrollChild:SetScript("OnEnter", function(frame)
 --print(detailFrame.maxScroll)
 			detailFrame.textScroll:SetVerticalScroll(detailFrame.maxScroll)
@@ -370,15 +379,14 @@ do
 			end
 
 			if GetTradeSkillDescription(index) then
-				descriptionLabel:ClearAllPoints()
---				descriptionLabel:SetHeight()
-				descriptionLabel:SetPoint("TOPLEFT", cooldownLabel, "BOTTOMLEFT", 0,0)
-				descriptionLabel:SetWidth(detailsWidth - 10)
+				descriptionTextSizeOnly:SetText(GetTradeSkillDescription(index))
+				local height = descriptionTextSizeOnly:GetHeight()
 
+
+				descriptionLabel:SetPoint("TOPLEFT", cooldownLabel, "BOTTOMLEFT", 0,0)
 				descriptionLabel:SetText(GetTradeSkillDescription(index))
 				descriptionLabel:Show()
 
-				local height = descriptionLabel:GetHeight()
 				descriptionLabel:SetHeight(height)
 
 				local maxHeight = cooldownLabel:GetBottom() - detailFrame.textScroll:GetBottom()
