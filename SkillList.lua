@@ -175,10 +175,18 @@ do
 
 
 	function GnomeWorks:CacheTradeSkillLink(link)
-		if string.match(link,"trade:") then
+		if link and string.match(link,"trade:") then
 			local isLinked,player = IsTradeSkillLinked()
 
 			if player and isLinked then
+
+
+				if player == UnitName("player") then -- and (rank ~= self:GetTradeSkillRank(player, tradeID) or rank == 0) then
+	--				player = player.." ShoppingList"
+					player = "All Recipes"
+				end
+
+
 				if not GnomeWorks.data.playerData[player] then
 
 					local tradeID = tradeIDByName[GetTradeSkillLine()]
@@ -245,16 +253,18 @@ do
 
 
 	function GnomeWorks:OpenTradeLink(tradeLink)
-		local tradeString = string.match(tradeLink, "(trade:%d+:%d+:%d+:[0-9a-fA-F]+:[A-Za-z0-9+/]+)")
+		if tradeLink then
+			local tradeString = string.match(tradeLink, "(trade:%d+:%d+:%d+:[0-9a-fA-F]+:[A-Za-z0-9+/]+)")
 
-		if (UnitName("player")) == player then
-			local tradeName = GetSpellInfo(string.match(tradeString, "trade:(%d+)"))
+			if (UnitName("player")) == player then
+				local tradeName = GetSpellInfo(string.match(tradeString, "trade:(%d+)"))
 
-			if ((GetTradeSkillLine() == "Mining" and "Smelting") or GetTradeSkillLine()) ~= tradeName or IsTradeSkillLinked() then
-				CastSpellByName(tradeName)
+				if ((GetTradeSkillLine() == "Mining" and "Smelting") or GetTradeSkillLine()) ~= tradeName or IsTradeSkillLinked() then
+					CastSpellByName(tradeName)
+				end
+			else
+				SetItemRef(tradeString,tradeLink,"LeftButton")
 			end
-		else
-			SetItemRef(tradeString,tradeLink,"LeftButton")
 		end
 	end
 
@@ -270,6 +280,10 @@ do
 				self:ShowReagents(index)
 
 				self.selectedSkill = index
+
+				self:ShowSkillList()
+
+				self:ScrollToIndex(index)
 			else
 	--			self:HideDetails()
 	--			self:HideReagents()
@@ -280,27 +294,36 @@ do
 		end
 	end
 
+	local function DoRecipeSelection(recipeID)
+	local player = GnomeWorks.player
 
-	function GnomeWorks:SelectRecipe(recipeID)
-		local player = self.player
-
-		if recipeID and self.data.recipeDB[recipeID] and self.data.skillIndexLookup[player] then
-			local tradeID = self.data.recipeDB[recipeID].tradeID
-			local skillIndex = self.data.skillIndexLookup[player][recipeID]
-
-
-			if tradeID ~= self.tradeID then
-				if player == (UnitName("player")) then
-					CastSpellByName((GetSpellInfo(tradeID)))
-				else
-					self:OpenTradeLink(self.data.linkDB[player][tradeID])
-				end
-			end
+		if recipeID and GnomeWorks.data.recipeDB[recipeID] and GnomeWorks.data.skillIndexLookup[player] then
+			local tradeID = GnomeWorks.data.recipeDB[recipeID].tradeID
+			local skillIndex = GnomeWorks.data.skillIndexLookup[player][recipeID]
 
 			if skillIndex then
-				self:SelectSkill(skillIndex)
+				GnomeWorks:SelectSkill(skillIndex)
 			end
 		end
+	end
+
+
+	function GnomeWorks:SelectRecipe(tradeID, recipeID)
+		local player = self.player
+
+		if tradeID ~= self.tradeID then
+			if player == (UnitName("player")) then
+				CastSpellByName((GetSpellInfo(tradeID)))
+			else
+				self:OpenTradeLink(self:GetTradeLink(tradeID, player))
+			end
+
+			GnomeWorks:RegisterMessage("GnomeWorksScanComplete", function() DoRecipeSelection(recipeID) end)
+		else
+			DoRecipeSelection(recipeID)
+		end
+
+
 	end
 
 
@@ -360,7 +383,7 @@ do
 	-- expand all headers, but turn off update events so we don't end up with recursion (fails under 3.3.3 -- boo)
 --		self:UnregisterEvent("TRADE_SKILL_UPDATE")
 		for i = 1, GetNumTradeSkills() do
-			local skillName, skillType = GetTradeSkillInfo(i)
+			local skillName, skillType, _, isExpanded = GetTradeSkillInfo(i)
 
 			if skillType == "header" then
 				if not isExpanded then
@@ -568,7 +591,7 @@ do
 
 	--	Skillet:RecipeGroupConstructDBString(mainGroup)
 
-	DebugSpam("Scan Complete")
+--	DebugSpam("Scan Complete")
 
 
 		GnomeWorks:InventoryScan()
@@ -596,6 +619,7 @@ do
 		self.currentTradeID = tradeID
 
 		GnomeWorks:ScheduleTimer("UpdateMainWindow",.1)
+		GnomeWorks:SendMessage("GnomeWorksScanComplete")
 
 		return skillData, player, tradeID
 	--	AceEvent:TriggerEvent("Skillet_Scan_Complete", profession)
@@ -616,6 +640,7 @@ do
 
 		return 0, 0
 	end
+
 
 
 	function GnomeWorks:GetSkillColor(index)
@@ -640,6 +665,9 @@ do
 		player = player or self.player
 
 		return (self.data.playerData[player] and self.data.playerData[player].links) or linkDB[player]
+	end
 
+	function GnomeWorks:GetTradeLink(tradeID, player)
+		return self:GetTradeLinkList(player)[tradeID]
 	end
 end

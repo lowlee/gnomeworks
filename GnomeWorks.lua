@@ -14,7 +14,6 @@ LibStub("AceEvent-3.0"):Embed(GnomeWorks)
 LibStub("AceTimer-3.0"):Embed(GnomeWorks)
 
 
-
 --[[
 	options
 

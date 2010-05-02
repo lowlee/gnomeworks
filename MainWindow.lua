@@ -30,6 +30,10 @@ do
 	local highlightSelectedMouseOver = { ["r"] = 1, ["g"] = 1, ["b"] = 0.5, ["a"] = 0.5 }
 
 
+	local colorFilteringEnabled = { .75,.5,0 }
+
+
+
 	local cbag = "|cffffff80"
 	local cvendor = "|cff80ff80"
 	local cbank =  "|cffffa050"
@@ -45,6 +49,8 @@ do
 
 
 	local playerSelectMenu
+
+	local columnHeaders
 
 
 	local itemQualityColor = {}
@@ -78,8 +84,63 @@ do
 
 	local filterMenuFrame = CreateFrame("Frame", "GnomeWorksFilterMenuFrame", getglobal("UIParent"), "UIDropDownMenuTemplate")
 
-	local filterParameters = {
+
+	local activeFilterList = {}
+
+
+	local function CreateFilterMenu(filterParameters, menu, column)
+		local function filterSet(button, setting)
+			filterParameters[setting].enabled = not filterParameters[setting].enabled
+
+			if filterParameters[setting].enabled then
+				activeFilterList[setting] = filterParameters[setting]
+			else
+				activeFilterList[setting] = nil
+			end
+
+
+			local filtersEnabled = false
+
+			for filterName,filter in pairs(filterParameters) do
+				if filter.enabled then
+					filtersEnabled = true
+					break;
+				end
+			end
+
+			if filtersEnabled then
+				columnHeaders[column].headerColor = colorFilteringEnabled
+			else
+				columnHeaders[column].headerColor = nil
+			end
+
+			sf:Refresh()
+		end
+
+
+		for filterName,filter in pairs(filterParameters) do
+			local menuEntry = {
+				text = filter.label,
+				tooltipText = filter.tooltip,
+				func = filterSet,
+				arg1 = filterName,
+				checked = function()
+					return filterParameters[filterName].enabled
+				end,
+			}
+
+			table.insert(menu, menuEntry)
+		end
+	end
+
+
+
+	local craftFilterMenu = {
+	}
+
+	local craftFilterParameters = {
 		haveMaterials = {
+			label = "Have Materials",
 			enabled = false,
 			func = function(entry)
 				if entry and entry.craftAlt and entry.craftAlt > 0 then
@@ -91,26 +152,65 @@ do
 		},
 	}
 
---	local selectedPlayers = {["STRANGERS"] = true, ["OFFLINE"] = true}
-
-	local function filerSet(button, setting)
-	print("filter set")
-		filterParameters[setting].enabled = not filterParameters[setting].enabled
-		sf:Refresh()
-	end
+	CreateFilterMenu(craftFilterParameters, craftFilterMenu, 3)
 
 
-	local craftFilterMenu = {
-		{ text = "Have Materials", func = filterSet, arg1 = "haveMaterials", checked = function() return filterParameters.haveMaterials.enabled end},
---		{ text = "Show Offline", func = PlayerFilterSet, arg1 = "OFFLINE", checked = function() return selectedPlayers["OFFLINE"] end },
+
+	local levelFilterMenu = {
+	}
+
+	local levelFilterParameters = {
+		usable = {
+			label = "Player Meets Level Requirement",
+			enabled = false,
+			func = function(entry)
+				if entry and UnitLevel("player") >= (entry.itemLevel or 0) then
+					return false
+				else
+					return true
+				end
+			end,
+		},
+	}
+
+	CreateFilterMenu(levelFilterParameters, levelFilterMenu, 1)
+
+
+
+	local recipeFilterMenu = {
+	}
+
+	local recipeFilterParameters = {
+		hideTrivial = {
+			label = "Hide Trivial",
+			enabled = false,
+			func = function(entry)
+				local skillData = GnomeWorks:GetSkillData(entry.skillIndex)
+				if skillData and skillData.difficulty ~= "trivial" then
+					return false
+				else
+					return true
+				end
+			end,
+		},
+	}
+
+	CreateFilterMenu(recipeFilterParameters, recipeFilterMenu, 2)
+
+
+	local recipeMenu = {
+		{ text = "Collapse All", func = function() GnomeWorks:CollapseAllHeaders(sf.data.entries) sf:Refresh() end,},
+		{ text = "Expand All", func = function() GnomeWorks:ExpandAllHeaders(sf.data.entries) sf:Refresh() end,},
+		{ text = "Filters", menuList = recipeFilterMenu, hasArrow = true},
 	}
 
 
-	local columnHeaders = {
+
+	columnHeaders = {
 		{
 			["name"] = "Level",
 			["align"] = "CENTER",
-			["width"] = 30,
+			["width"] = 36,
 			["bgcolor"] = colorBlack,
 			["tooltipText"] = "click to sort\rright-click to filter",
 			["font"] = "GameFontHighlightSmall",
@@ -118,28 +218,6 @@ do
 							if entry.subGroup then
 								cellFrame.text:SetText("")
 								return
-							end
-
-
-							if not entry.itemColor then
-								local itemLink = GetTradeSkillItemLink(entry.skillIndex)
-
-								local _,itemRarity,reqLevel
-								local itemColor
-
-								if itemLink then
-									_,_,itemRarity,_,reqLevel = GetItemInfo(itemLink)
-
-									itemColor = itemQualityColor[itemRarity]
-								else
-									itemColor = itemQualityColor[0]
-								end
-
-								if reqLevel and reqLevel > 0 then
-									entry.itemLevel = reqLevel
-								end
-
-								entry.itemColor = itemColor
 							end
 
 							local cr,cg,cb = 1,1,1
@@ -158,26 +236,14 @@ do
 --								local _,skillType,craftable = GetTradeSkillInfo(i)
 
 						end,
+				["OnClick"] = 	function(cellFrame, button)
+								if button == "RightButton" then
+									local x, y = GetCursorPosition()
+									local uiScale = UIParent:GetEffectiveScale()
 
-
---[[									if (rowData.value or 0 ) > 0 then
-										cellFrame.text:SetFormattedText("%d",entry.value)
-
-										local cr,cg,cb = 1,1,1
-
-										if entry.subGroup then
-											cr,cg,cb = 1,.82,0
-										else
-											if entry.color then
-												cr,cg,cb = entry.color.r, entry.color.g, entry.color.b
-											end
-										end
-
-										cellFrame.text:SetTextColor(cr,cg,cb)
-									else
-										cellFrame.text:SetText("");
-									end
-]]
+									EasyMenu(levelFilterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
+								end
+							end,
 		}, -- [1]
 		{
 			["font"] = "GameFontHighlight",
@@ -195,6 +261,13 @@ do
 									else
 										GnomeWorks:SelectSkill(entry.skillIndex)
 										sf:Draw()
+									end
+								else
+									if button == "RightButton" then
+										local x, y = GetCursorPosition()
+										local uiScale = UIParent:GetEffectiveScale()
+
+										EasyMenu(recipeMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
 									end
 								end
 							end,
@@ -441,7 +514,7 @@ do
 		sf = GnomeWorks:CreateScrollingTable(skillFrame, ScrollPaneBackdrop, columnHeaders, ResizeSkillFrame)
 
 		sf.IsEntryFiltered = function(self, entry)
-			for k,filter in pairs(filterParameters) do
+			for k,filter in pairs(activeFilterList) do
 				if filter.enabled then
 					if filter.func(entry) then
 						return true
@@ -470,6 +543,28 @@ do
 				entry.craftVendor = vendor
 				entry.craftBank = bank
 				entry.craftAlt = alts
+
+				if not entry.itemColor then
+					local itemLink = GetTradeSkillItemLink(entry.skillIndex)
+
+					local _,itemRarity,reqLevel
+					local itemColor
+
+					if itemLink then
+						_,_,itemRarity,_,reqLevel = GetItemInfo(itemLink)
+
+						itemColor = itemQualityColor[itemRarity]
+					else
+						itemColor = itemQualityColor[0]
+					end
+
+					if reqLevel and reqLevel > 0 then
+						entry.itemLevel = reqLevel
+					end
+
+					entry.itemColor = itemColor
+				end
+
 			end
 		end
 
@@ -541,13 +636,9 @@ do
 	end
 ]]
 
-	function GnomeWorks:TRADE_SKILL_SHOW(...)
-		frame:Show()
-		frame.title:Show()
-		sf:Show()
 
+	function GnomeWorks:DoUpdate()
 		self:ScanTrade()
-
 
 		local index = GetTradeSkillSelectionIndex()
 
@@ -559,6 +650,15 @@ do
 		end
 
 		self:ShowQueueList()
+
+		ResizeMainWindow()
+	end
+
+
+	function GnomeWorks:TRADE_SKILL_SHOW()
+		frame:Show()
+		frame.title:Show()
+		sf:Show()
 	end
 
 
@@ -597,11 +697,14 @@ do
 	end
 
 
-	function GnomeWorks:TRADE_SKILL_UPDATE()
-		if frame:IsVisible() then
-			ResizeMainWindow()
-		end
+	function GnomeWorks:TRADE_SKILL_UPDATE(...)
+-- print(...)
+		GnomeWorks:ScheduleTimer("DoUpdate",.1)
+
+--		if frame:IsVisible() then
+--		end
 	end
+
 
 	function GnomeWorks:TRADE_SKILL_CLOSE()
 		frame.title:Hide()
@@ -611,6 +714,23 @@ do
 	function GnomeWorks:SetFilterText(text)
 		textFilter = string.lower(text)
 		sf:Refresh()
+	end
+
+
+	function GnomeWorks:ScrollToIndex(skillIndex)
+		local rowIndex = 1
+
+		for i=1,#sf.dataMap do
+			if sf.dataMap[i].skillIndex == skillIndex then
+				rowIndex = i
+			end
+		end
+
+		if rowIndex <= sf.scrollOffset then
+			sf.scrollBar:SetValue((rowIndex-1) * sf.rowHeight)
+		elseif rowIndex > sf.scrollOffset + sf.numRows then
+			sf.scrollBar:SetValue((rowIndex - sf.numRows)*sf.rowHeight)
+		end
 	end
 
 
@@ -704,7 +824,7 @@ do
 
 			local recipeID = tonumber(string.match(recipeLink, "enchant:(%d+)"))
 
-			GnomeWorks:AddToQueue(GnomeWorks.player, recipeID, 1)
+			GnomeWorks:AddToQueue(GnomeWorks.player, GnomeWorks.tradeID, recipeID, 1)
 		end
 
 
@@ -746,7 +866,7 @@ do
 
 
 	function GnomeWorks:CreateMainWindow()
-		frame = self.Window:CreateResizableWindow("GnomeWorksFrame", "GnomeWorks ("..VERSION..")", 600, 400, ResizeMainWindow, GnomeWorksDB.config)
+		frame = self.Window:CreateResizableWindow("GnomeWorksFrame", "GnomeWorks (r"..VERSION..")", 600, 400, ResizeMainWindow, GnomeWorksDB.config)
 
 		frame:SetMinResize(500,400)
 

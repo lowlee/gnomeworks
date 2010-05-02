@@ -33,7 +33,7 @@ do
 		{
 			["name"] = "#",
 			["align"] = "CENTER",
-			["width"] = 20,
+			["width"] = 25,
 			["bgcolor"] = colorBlack,
 			["tooltipText"] = "click to sort\rright-click to filter",
 			["dataField"] = "numNeeded",

@@ -76,13 +76,7 @@ do
 										GameTooltip:SetOwner(rowFrame, "ANCHOR_TOPRIGHT")
 										GameTooltip:ClearLines()
 
-										if entry.needsVendor then
-											GameTooltip:AddLine("missing vendor reagent", 0,1,0)
-										elseif entry.needsCrafting then
-											GameTooltip:AddLine("missing craftable reagent", 0,1,1)
-										else
-											GameTooltip:AddLine("missing reagent",1,0,0)
-										end
+										GameTooltip:AddLine("missing reagent",1,0,0)
 
 										GameTooltip:Show()
 									end
@@ -92,16 +86,11 @@ do
 							GameTooltip:Hide()
 						end,
 			["draw"] =	function (rowFrame,cellFrame,entry)
-							if entry.needsVendor then
-								cellFrame.text:SetTextColor(0,1,0)
-							elseif entry.needsCrafting then
-								cellFrame.text:SetTextColor(0,1,1)
-							elseif entry.needsMaterials then
+							if entry.needsMaterials then
 								cellFrame.text:SetTextColor(1,0,0)
 							else
 								cellFrame.text:SetTextColor(1,1,1)
 							end
-
 
 							cellFrame.text:SetText(entry.count)
 						end,
@@ -116,12 +105,13 @@ do
 								if cellFrame:GetParent().rowIndex>0 then
 									local entry = cellFrame.data
 
-									if entry.subGroup and 0 == 1 then
+									if entry.subGroup then
 										entry.subGroup.expanded = not entry.subGroup.expanded
 										sf:Refresh()
 									else
-										GnomeWorks:SelectRecipe(entry.recipeID)
---										sf:Draw()
+										if entry.tradeID and entry.recipeID then
+											GnomeWorks:SelectRecipe(entry.tradeID, entry.recipeID)
+										end
 									end
 								end
 							end,
@@ -134,44 +124,41 @@ do
 							cellFrame.text:SetPoint("LEFT", cellFrame, "LEFT", entry.depth*16+4, 0)
 							cellFrame.text:SetPoint("RIGHT", cellFrame, "RIGHT", -4, 0)
 
-							if entry.subGroup and 0 == 1 then
-								local tex
+							local needsScan = GnomeWorks.data.recipeDB[entry.recipeID]==nil
 
+
+							local tex = ""
+
+							if entry.subGroup then
 								if entry.subGroup.expanded then
 									tex = "+ " -- texExpanded
 								else
 									tex = "-  " -- texClosed
 								end
-
-								cellFrame.text:SetFormattedText("%s%s",tex,GetSpellInfo(entry.recipeID))
-
-								if entry.manualEntry then
-									cellFrame.text:SetTextColor(1,1,1)
-								else
-									cellFrame.text:SetTextColor(.5,.5,.5)
-								end
-							else
-								if entry.command == "process" then
-									cellFrame.text:SetText((GetSpellInfo(entry.recipeID)))
-
-									if entry.manualEntry then
-										cellFrame.text:SetTextColor(1,1,1)
-									else
-										cellFrame.text:SetTextColor(.5,.5,.5)
-									end
-								elseif entry.command == "purchase" then
-									cellFrame.text:SetFormattedText("Purchase %s", (GetItemInfo(entry.itemID)))
-
-									if GnomeWorks:VendorSellsItem(entry.itemID) then
-										cellFrame.text:SetTextColor(0,.5,0)
-									else
-										cellFrame.text:SetTextColor(.5,.5,.5)
-									end
-								end
 							end
 
+							if entry.command == "process" then
+
+								cellFrame.text:SetFormattedText("%sProcess %s",tex,(GetSpellInfo(entry.recipeID)))
 
 
+								if needsScan then
+									cellFrame.text:SetTextColor(1,0,0, (entry.manualEntry and 1) or .75)
+								else
+									cellFrame.text:SetTextColor(.3,1,1, (entry.manualEntry and 1) or .75)
+								end
+							elseif entry.command == "purchase" then
+								cellFrame.text:SetFormattedText("%sPurchase %s", tex,(GetItemInfo(entry.itemID)))
+
+								if GnomeWorks:VendorSellsItem(entry.itemID) then
+									cellFrame.text:SetTextColor(0,.7,0)
+								else
+									cellFrame.text:SetTextColor(.7,.7,0)
+								end
+							elseif entry.command == "needs" then
+								cellFrame.text:SetFormattedText("%sRequires %s", tex,(GetItemInfo(entry.itemID)))
+								cellFrame.text:SetTextColor(.8,.25,.8)
+							end
 						end,
 		}, -- [2]
 	}
@@ -259,15 +246,15 @@ do
 	end
 
 
-	local function QueueCommandIterate(recipeID, count)
-		local entry = { command = "iterate", count = count, recipeID = recipeID }
+	local function QueueCommandIterate(tradeID, recipeID, count)
+		local entry = { command = "iterate", count = count, tradeID = tradeID, recipeID = recipeID }
 
 		return entry
 	end
 
 
 
-	function GnomeWorks:AddToQueue(player, recipeID, count)
+	function GnomeWorks:AddToQueue(player, tradeID, recipeID, count)
 		if not self.data.queueData[player] then
 			self.data.queueData[player] = {}
 		end
@@ -287,7 +274,7 @@ do
 		end
 
 
-		table.insert(self.data.queueData[player], QueueCommandIterate(recipeID, count))
+		table.insert(self.data.queueData[player], QueueCommandIterate(tradeID, recipeID, count))
 
 		self:ShowQueueList()
 	end
@@ -311,7 +298,7 @@ do
 	end
 
 
-	local function AddRecipeToConstructionQueue(recipeID, count, data, needsMaterials, needsVendor, needsCrafting, subGroup)
+	local function AddRecipeToConstructionQueue(tradeID, recipeID, count, data, needsMaterials, needsVendor, needsCrafting)
 		for i=1,#data do
 			if data[i].recipeID == recipeID then
 				data[i].count = data[i].count + count
@@ -323,11 +310,7 @@ do
 			end
 		end
 
-		if subGroup then
-			subGroup = { expanded = true, entries = subGroup }
-		end
-
-		local newEntry = { command = "process", recipeID = recipeID, count = count, needsMaterials = needsMaterials, needsCrafting = needsCrafting, needsVendor = needsVendor, subGroup = subGroup }
+		local newEntry = { command = "process", tradeID = tradeID, recipeID = recipeID, count = count, needsMaterials = needsMaterials, needsCrafting = needsCrafting, needsVendor = needsVendor }
 
 		data[#data + 1] = newEntry
 
@@ -336,9 +319,23 @@ do
 
 
 	local recursionLimiter = {}
+	local cooldownUsed = {}
 
-	local function AddToConstructionQueue(player, recipeID, count, data, primary)
+	local function AddToConstructionQueue(player, tradeID, recipeID, count, data, primary)
+		if not recipeID then return nil, 0 end
+
 		if recursionLimiter[recipeID] then return nil, 0 end
+
+		local cooldownGroup = GnomeWorks:GetSpellCooldownGroup(recipeID)
+
+		if cooldownGroup then
+			if cooldownUsed[cooldownGroup] then
+				return nil, 0
+			end
+
+			cooldownUsed[cooldownGroup] = true
+		end
+
 
 		recursionLimiter[recipeID] = true
 
@@ -346,40 +343,57 @@ do
 		local needsCrafting
 		local needsVendor
 
-		local recipeData = GnomeWorks.data.recipeDB[recipeID]
+		local recipeData = GnomeWorks.data.recipeDB
+		local itemSourceData = GnomeWorks.data.itemSource
+		local reagentUsageData = GnomeWorks.data.reagentUsage
 
 		local numCraftable = count
 
 		local subGroup
 
-		if recipeData then
-			for r,reagentInfo in pairs(recipeData.reagentData) do
+		local newEntry = AddRecipeToConstructionQueue(tradeID, recipeID, count, data)
+
+		if recipeData[recipeID] then
+			for r,reagentInfo in pairs(recipeData[recipeID].reagentData) do
 				local inBags = GnomeWorks:GetInventory(player, reagentInfo.id)
+
 
 				local inQueue = count * reagentInfo.numNeeded
 
+--print((GetItemInfo(reagentInfo.id)), inBags, inQueue)
+
 				if inQueue > inBags then
 
-					if not subGroup then
-						subGroup = {}
+					if not newEntry.subGroup then
+						newEntry.subGroup = { expanded = false, entries = {} }
 					end
 
 					needsMaterials = true
 
-					local childRecipe = GnomeWorks.data.itemSource[reagentInfo.id]
+					local childRecipe = itemSourceData[reagentInfo.id]
+
 					if childRecipe then
+						local optionGroup = { command = "needs", itemID = reagentInfo.id, count = inQueue-inBags, subGroup = { entries = {}, expanded = false }}
+
+						table.insert(newEntry.subGroup.entries, optionGroup)
+
+						numCraftable = math.min(numCraftable, inBags / reagentInfo.numNeeded)
+						AddPurchaseToConstructionQueue(reagentInfo.id, inQueue - inBags, optionGroup.subGroup.entries)
+
 						if type(childRecipe) == "table" then
 							for childRecipe in pairs(childRecipe) do
-								local numMade = (GnomeWorks.data.recipeDB[childRecipe] and GnomeWorks.data.recipeDB[childRecipe].numMade) or 1
+								local childData = GnomeWorks.data.recipeDB[childRecipe]
+								local numMade = (childData and childData.numMade) or 1
 
-								local _, numQueued = AddToConstructionQueue(player, childRecipe, math.ceil((inQueue - inBags) / numMade), subGroup)
+								local newEntry, numQueued = AddToConstructionQueue(player, childData and childData.tradeID, childRecipe, math.ceil((inQueue - inBags) / numMade), optionGroup.subGroup.entries)
 
 								numCraftable = math.min(numCraftable, (inBags + numQueued * numMade) / reagentInfo.numNeeded)
 							end
 						else
-							local numMade = (GnomeWorks.data.recipeDB[childRecipe] and GnomeWorks.data.recipeDB[childRecipe].numMade) or 1
+							local childData = GnomeWorks.data.recipeDB[childRecipe]
+							local numMade = (childData and childData.numMade) or 1
 
-							local _, numQueued = AddToConstructionQueue(player, childRecipe, math.ceil((inQueue - inBags) / numMade), subGroup)
+							local _, numQueued = AddToConstructionQueue(player, childData and childData.tradeID, childRecipe, math.ceil((inQueue - inBags) / numMade), optionGroup.subGroup.entries)
 
 							numCraftable = math.min(numCraftable, (inBags + numQueued * numMade) / reagentInfo.numNeeded)
 						end
@@ -390,19 +404,40 @@ do
 						end
 
 						numCraftable = math.min(numCraftable, inBags / reagentInfo.numNeeded)
-						AddPurchaseToConstructionQueue(reagentInfo.id, inQueue - inBags, subGroup)
+						AddPurchaseToConstructionQueue(reagentInfo.id, inQueue - inBags, newEntry.subGroup.entries)
 					end
 				end
 			end
 		end
 
+		newEntry.needsMaterials = needsMaterials
+		newEntry.needsVendor = needsVendor
+		newEntry.needsCrafting = needsCrafting
+
+--[[
 		if count > 0 then
 			recursionLimiter[recipeID] = nil
-			return AddRecipeToConstructionQueue(recipeID, count, data, needsMaterials, needsVendor, needsCrafting, subGroup)
+
+			if cooldownGroup then
+				cooldownUsed[cooldownGroup] = nil
+			end
+
+			local newEntry, count =  AddRecipeToConstructionQueue(tradeID, recipeID, count, data, needsMaterials, needsVendor, needsCrafting)
+
+			if subGroup then
+				newEntry.subGroup = subGroup
+			end
+
+			return newEntry, count
+		end
+]]
+
+		if cooldownGroup then
+			cooldownUsed[cooldownGroup] = nil
 		end
 
 		recursionLimiter[recipeID] = nil
-		return nil, count
+		return newEntry, count
 	end
 
 
@@ -411,7 +446,7 @@ do
 		if queue then
 			for i=1,#queue do
 
-				local entry = AddToConstructionQueue(player, queue[i].recipeID, queue[i].count, data, true)
+				local entry = AddToConstructionQueue(player, queue[i].tradeID, queue[i].recipeID, queue[i].count, data, true)
 
 				if entry then
 					entry.manualEntry = i

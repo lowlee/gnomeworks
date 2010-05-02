@@ -116,7 +116,7 @@ do
 
 	function GnomeWorks:InventoryScan(playerOverride)
 	--DEFAULT_CHAT_FRAME:AddMessage("InventoryScan "..invscan)
-	invscan = invscan + 1
+		invscan = invscan + 1
 		local player = playerOverride or self.player
 		local cachedInventory = self.data.inventoryData[player]
 

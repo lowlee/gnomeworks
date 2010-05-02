@@ -223,10 +223,12 @@ do
 						end
 
 						map[num+index] = entry
+						entry.dataIndex = num+index
 
 						num = num + 1
 					else
 						map[num+index] = entry
+						entry.dataIndex = num+index
 
 						num = num +1
 
@@ -237,6 +239,7 @@ do
 				else
 					if not scrollFrame:IsEntryFiltered(entry) then
 						map[num+index] = entry
+						entry.dataIndex = num+index
 
 						num = num + 1
 					end
@@ -447,6 +450,27 @@ do
 	local font = "GameFontHighlightSmall"
 
 
+	function GnomeWorks:CollapseAllHeaders(entries)
+		for i=1,#entries do
+			if entries[i].subGroup then
+				entries[i].subGroup.expanded = false
+				GnomeWorks:CollapseAllHeaders(entries[i].subGroup.entries)
+			end
+		end
+	end
+
+
+	function GnomeWorks:ExpandAllHeaders(entries)
+		for i=1,#entries do
+			if entries[i].subGroup then
+				entries[i].subGroup.expanded = true
+				GnomeWorks:ExpandAllHeaders(entries[i].subGroup.entries)
+			end
+		end
+	end
+
+
+
 	function GnomeWorks:CreateScrollingTable(parentFrame, backDrop, columnHeaders, onResize)
 --		local rows = floor((parentFrame:GetHeight() - 15) / 15)
 --		local LibScrollingTable = LibStub("ScrollingTable")
@@ -530,7 +554,6 @@ do
 
 
 		sf.DrawRowHighlight = function(scrollFrame, rowFrame, entry)
-
 			if rowFrame.rowIndex == 0 then
 				return
 			end
@@ -562,6 +585,12 @@ do
 			for i=1,#rowFrame.cols do
 				if rowFrame.rowIndex == 0 then
 					rowFrame.cols[i].text:SetText(headers[i].name)
+
+					if headers[i].headerColor then
+						rowFrame.cols[i].text:SetTextColor(unpack(headers[i].headerColor))
+					else
+						rowFrame.cols[i].text:SetTextColor(1,1,1)
+					end
 				else
 					if headers[i].draw and rowData then
 						headers[i].draw(rowFrame,rowFrame.cols[i],rowData)
