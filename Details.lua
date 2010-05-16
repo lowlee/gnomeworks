@@ -88,8 +88,11 @@ do
 								end,
 			["dataField"] = "numAvailable",
 			["draw"] =	function (rowFrame,cellFrame,entry)
-							local _, bag, _, bank = GnomeWorks:GetInventory(GnomeWorks.player, entry.id)
-							local _,_,_, alt = GnomeWorks:GetFactionInventory(entry.id)
+--							local _, bag, _, bank = GnomeWorks:GetInventory(GnomeWorks.player, entry.id)
+--							local _,_,_, alt = GnomeWorks:GetFactionInventory(entry.id)
+							local bag = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBag queue")
+							local bank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBank queue")
+							local alt = GnomeWorks:GetInventoryCount(entry.id, "faction", "craftedBank queue")
 
 							if alt > 0 then
 								local display = ""
@@ -190,13 +193,15 @@ do
 			reagentFrame:Show()
 
 			local skillData = self:GetSkillData(index)
-			local recipeData = self:GetRecipeData(skillData.id)
+			if skillData then
+				local recipeData = self:GetRecipeData(skillData.id)
 
-			sf.data.entries = recipeData.reagentData
+				sf.data.entries = recipeData.reagentData
 
-			sf.numData = #recipeData.reagentData
+				sf.numData = #recipeData.reagentData
 
-			sf:Refresh()
+				sf:Refresh()
+			end
 		end
 
 		return reagentFrame

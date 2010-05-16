@@ -1,37 +1,5 @@
 
 
---[[
-	revised api:
-		Create(frame, rowHeight) 		-- returns a blank st that fills the frame and defines the base rowHeight value
-
-		Refresh()							-- redraws table
-
-		DrawRow(rowIndex)					-- draws the entire row (0=header row?)			to be hooked
-		CreateRow(rowIndex)				-- handles creation of new row (0=header row?)	to be hooked
-
-		SetRowCompare()					-- sets the compare function for the sort
-		SetRowFilter()					-- sets the filter function for filtering
-
-		SetData()							-- sets the data entry point
-		SortData()							-- sorts the data table
-
-		row have events if cell doesn't intercept
-
-
-	support api for column handling:
-		InsertColumn(desc, [index])		-- adds a column with the desc table provided (at end if no index is provided)
-											-- need to figure out how to provide a map to manage order
-											-- returns columnKey for reference to this column for data retrieval?
-
-		DeleteColumn(columnKey)
-		HideColumn(columnKey)
-		ShowColumn(columnKey)
-		ResizeColumn(columnKey)
-
-		CreateColumn
-
-]]
-
 
 local libScrollKit = {}
 
@@ -40,22 +8,18 @@ do
 
 	local lib = libScrollKit
 
-
+-- the following functions are designed to be filled in by the user:
 	local function InitColumns(scrollFrame, rowFrame)
-		-- user function
 	end
-
 
 	local function DrawColumns(scrollFrame, rowFrame, rowData)
-		-- user function
 	end
-
 
 	local function IsEntryFiltered(scrollFrame)
 		return false
 	end
 
-
+-- standard api functions:
 	local function RowFrameOnEnter(rowFrame)
 		local scrollFrame = rowFrame.scrollFrame
 		scrollFrame.mouseOverIndex = rowFrame.rowIndex
@@ -88,7 +52,7 @@ do
 			rowFrame:SetPoint("TOPLEFT",scrollFrame,"TOPLEFT",0,-(rowIndex-1)*scrollFrame.rowHeight)
 			rowFrame:SetPoint("BOTTOMRIGHT",scrollFrame,"TOPRIGHT",0,-(rowIndex)*scrollFrame.rowHeight)
 
-			rowFrame:SetFrameLevel(rowFrame:GetFrameLevel()+10)
+--			rowFrame:SetFrameLevel(rowFrame:GetFrameLevel()+10)
 
 			rowFrame.rowIndex = rowIndex
 
@@ -100,7 +64,8 @@ do
 				rowFrame.highlight:Hide()
 			end
 
-			rowFrame.highlight:SetVertexColor(.5,.5,.5, .15)
+--			rowFrame.highlight:SetVertexColor(.5,.5,.5, .15)
+			rowFrame.highlight:SetVertexColor(.5,.5,.5, 0)
 
 			scrollFrame:InitColumns(rowFrame)
 
@@ -163,8 +128,10 @@ do
 			else
 				scrollDownButton:Enable();
 			end
-
 		else
+			scrollFrame.scrollBar:SetMinMaxValues(0, 0)
+			scrollFrame.scrollBar:SetValue(0)
+
 			scrollFrame:SetPoint("RIGHT",scrollFrame:GetParent(),0,0)
 			scrollFrame.scrollBar:Hide()
 		end
@@ -179,6 +146,8 @@ do
 					scrollFrame.rowFrame[i]:Hide()
 				end
 			end
+		else
+			print("draw row is not set!")
 		end
 	end
 
@@ -191,19 +160,34 @@ do
 		end
 	end
 
-
+-- sorts and then counts the entries that aren't filtered out
 	local function SortData(scrollFrame, data)
 		if data and data.entries then
+			local count = 0
+
 			for i=1,#data.entries do
 				local entry = data.entries[i]
 
 				if entry.subGroup then
-					SortData(scrollFrame, entry.subGroup)
+					local subCount = SortData(scrollFrame, entry.subGroup)
+					if subCount>0 then
+						count = count + subCount + 1
+					end
+				else
+					if not scrollFrame:IsEntryFiltered(entry) then
+						count = count + 1
+					end
 				end
 			end
 
 			table.sort(data, function(a,b) scrollFrame:SortCompare(a,b) end)
+
+			data.numVisible = count
+
+			return count
 		end
+
+		return 0
 	end
 
 
@@ -215,7 +199,7 @@ do
 				local entry = data.entries[i]
 				entry.depth = depth
 
-				if entry.subGroup then
+				if entry.subGroup and entry.subGroup.numVisible>0 then
 
 					if scrollFrame.childrenFirst then
 						if entry.subGroup.expanded then
@@ -246,7 +230,6 @@ do
 				end
 			end
 		end
-
 		return num
 	end
 
@@ -261,18 +244,14 @@ do
 				if entry.subGroup then
 					scrollFrame:UpdateRowData(entry)
 
-					if entry.subGroup.expanded then
+					if entry.subGroup then
 						UpdateData(scrollFrame, entry.subGroup, depth+1)
 					end
 				else
-					if not scrollFrame:IsEntryFiltered(entry) then
-						scrollFrame:UpdateRowData(entry)
-					end
+					scrollFrame:UpdateRowData(entry)
 				end
 			end
 		end
-
-		return num
 	end
 
 	local function Refresh(scrollFrame)
@@ -327,6 +306,12 @@ do
 		cellFrame:SetScript("OnClick", scrollFrame.OnClick)
 		cellFrame:SetScript("OnEnter", scrollFrame.OnEnter)
 		cellFrame:SetScript("OnLeave", scrollFrame.OnLeave)
+
+		if cellFrame.button then
+			cellFrame.button:SetScript("OnClick", function(frame, mouseButton) scrollFrame.OnClick(cellFrame, mouseButton, "button") end)
+--			cellFrame.button:SetScript("OnEnter", function(frame, mouseButton) scrollFrame.OnEnter(cellFrame) end)
+--			cellFrame.button:SetScript("OnLeave", function(frame, mouseButton) scrollFrame.OnLeave(cellFrame) end)
+		end
 	end
 
 
@@ -519,7 +504,7 @@ do
 
 				rowFrame.cols = {}
 
-				for i=1,#scrollFrame.columnHeaders do
+				for i=1,#header do
 					local c = CreateFrame("Button", nil, rowFrame)
 
 					c:EnableMouse(true)
@@ -530,24 +515,47 @@ do
 					c:SetPoint("RIGHT",scrollFrame.columnFrames[i])
 					c:SetPoint("TOP",rowFrame)
 
+
 					if rowFrame.rowIndex == 0 then
+						c.bg = c:CreateTexture(nil, "OVERLAY")
+						c.bg:SetTexture(1,1,1,1)
+						c.bg:SetVertexColor(1,1,1,1)
+--						c.bg:Show()
+						c.bg:SetPoint("TOPLEFT",0,0)
+						c.bg:SetPoint("BOTTOMRIGHT",0,0)
+
+
 						c.text = c:CreateFontString(nil, "OVERLAY", font)
 					else
 						c.text = c:CreateFontString(nil, "OVERLAY", header[i].font or font)
 					end
+
 					c.text:SetPoint("TOP",c)
 					c.text:SetPoint("BOTTOM",c)
 					c.text:SetPoint("LEFT", c)
 					c.text:SetPoint("RIGHT", c)
 					c.text:SetJustifyH(header[i].align or "LEFT")
 
-					scrollFrame:SetHandlerScripts(c)
-
 					c.OnClick = header[i].OnClick
 					c.OnEnter = header[i].OnEnter
 					c.OnLeave = header[i].OnLeave
 
 					rowFrame.cols[i] = c
+
+					if header[i].button then
+						c.button = CreateFrame("button", nil, c)
+						c.button:SetWidth(header[i].button.width or 16)
+						c.button:SetHeight(header[i].button.height or 16)
+						c.button:SetNormalTexture(header[i].button.normalTexture)
+						c.button:SetHighlightTexture(header[i].button.highlightTexture)
+
+						c.button:SetPoint("LEFT")
+--						c.button:Hide()
+					end
+
+
+
+					scrollFrame:SetHandlerScripts(c)
 				end
 			end
 		end
@@ -590,6 +598,13 @@ do
 						rowFrame.cols[i].text:SetTextColor(unpack(headers[i].headerColor))
 					else
 						rowFrame.cols[i].text:SetTextColor(1,1,1)
+					end
+
+					if headers[i].headerBgColor then
+						rowFrame.cols[i].bg:SetVertexColor(unpack(headers[i].headerBgColor))
+						rowFrame.cols[i].bg:Show()
+					else
+						rowFrame.cols[i].bg:Hide()
 					end
 				else
 					if headers[i].draw and rowData then

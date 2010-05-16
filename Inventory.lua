@@ -22,7 +22,7 @@ do
 	end
 
 
-	function GnomeWorks:MERCHANT_UPDATE()
+	function GnomeWorks:MERCHANT_SHOW(...)
 		for i=1,GetMerchantNumItems() do
 			local link = GetMerchantItemLink(i)
 
@@ -31,177 +31,102 @@ do
 
 				itemID = tonumber(itemID)
 
-				local name, texture, price, quantity, numAvailable, isUsable, extendedCost = GetMerchantItemInfo(i)
+				if self.data.reagentUsage[itemID] and not GnomeWorksDB.vendorItems[itemID] then
+					local name, texture, price, quantity, numAvailable, isUsable, extendedCost = GetMerchantItemInfo(i)
 
-				if numAvailable ~= -1 then
-					GnomeWorksDB.vendorItems[itemID] = true
+					if numAvailable == -1 then
+						print("|c008080ffGnomeWorks recording vendor item: ",link)
+						GnomeWorksDB.vendorItems[itemID] = true
+					end
 				end
 			end
 		end
+	end
+
+	function GnomeWorks:MERCHANT_UPDATE(...)
+		self:MERCHANT_SHOW(...)
+	end
+
+
+	local function CalculateRecipeCrafting(craftabilityTable, childRecipe, player, containerList)
+
+		local numCraftable = 100000
+
+		for i=1,#childRecipe.reagentData,1 do
+			local childReagent = childRecipe.reagentData[i]
+
+			local numReagentCraftable = GnomeWorks:InventoryReagentCraftability(craftabilityTable, childReagent.id, player, containerList)
+
+			numCraftable = math.min(numCraftable, math.floor(numReagentCraftable/childReagent.numNeeded))
+		end
+
+		return  numCraftable * childRecipe.numMade
 	end
 
 
 	-- recursive reagent craftability check
-	-- not considering alts at the moment
-	-- does consider queued recipes
-	function GnomeWorks:InventoryReagentCraftability(reagentID, playerOverride)
+	-- utilizes all containers passed to it ("bag", "bank", "queue", "guildbank", "mail", etc)
+	function GnomeWorks:InventoryReagentCraftability(craftabilityTable, reagentID, player, containerList)
 		if itemVisited[reagentID] then
 			return 0, 0			-- we've been here before, so bail out to avoid infinite loop
 		end
 
-		local player = playerOverride or GnomeWorks.player
+		if craftabilityTable[reagentID] then
+			return craftabilityTable[reagentID]
+		end
+
 
 		itemVisited[reagentID] = true
 
 
+		local recipeDB = self.data.recipeDB
+
 		local recipeSource = GnomeWorksDB.itemSource[reagentID]
-		local numReagentsCrafted = 0
-		local numReagentsCraftedBank = 0
 
-		local function CalculateRecipeCrafting(childRecipeID)
-			local childRecipe = GnomeWorks.data.recipeDB[childRecipeID]
-
-			if childRecipe and childRecipe.craftable then
-				local numCraftable = 100000
-				local numCraftableBank = 100000
-
-				for i=1,#childRecipe.reagentData,1 do
-					local childReagent = childRecipe.reagentData[i]
-
-					local numReagentCraftable, numReagentCraftableBank = self:InventoryReagentCraftability(childReagent.id)
-
-					numCraftable = math.min(numCraftable, math.floor(numReagentCraftable/childReagent.numNeeded))
-					numCraftableBank = math.min(numCraftableBank, math.floor(numReagentCraftableBank/childReagent.numNeeded))
-				end
-
-
-				numReagentsCrafted = numReagentsCrafted + numCraftable * childRecipe.numMade
-				numReagentsCraftedBank = numReagentsCraftedBank + numCraftableBank * childRecipe.numMade
-			end
-		end
-
+		local numReagentsCraftable = 0
 
 		if recipeSource then
 			if type(recipeSource) == "table" then
 				for childRecipeID in pairs(recipeSource) do
-					CalculateRecipeCrafting(childRecipeID)
+					local childRecipe = recipeDB[childRecipeID]
+
+					if childRecipe and childRecipe.craftable then
+						numReagentsCraftable = numReagentsCraftable + CalculateRecipeCrafting(craftabilityTable, childRecipe, player, containerList)
+					end
 				end
 			else
-				CalculateRecipeCrafting(recipeSource)
+				local childRecipe = recipeDB[recipeSource]
+
+				if childRecipe and childRecipe.craftable then
+					numReagentsCraftable = numReagentsCraftable + CalculateRecipeCrafting(craftabilityTable, childRecipe, player, containerList)
+				end
 			end
 		end
 
+		local inventoryCount = self:GetInventoryCount(reagentID, player, containerList) + numReagentsCraftable
 
-		local queued = 0
-
-		if self.data.playerData[player].reagentsInQueue then
-			queued = self.data.playerData[player].reagentsInQueue[reagentID] or 0
+		if inventoryCount ~= 0 then
+			craftabilityTable[reagentID] = inventoryCount
+		else
+			craftabilityTable[reagentID] = nil
 		end
-
-		local numInBags, _, numInBank = self:GetInventory(player, reagentID)
-
-		local numCraftable = numReagentsCrafted + numInBags + queued
-		local numCraftableBank = numReagentsCraftedBank + numInBank + queued
-
-
-		self.data.inventoryData[player][reagentID] = numInBags.." "..numCraftable.." "..numInBank.." "..numCraftableBank
 
 		itemVisited[reagentID] = false										-- okay to calculate this reagent again
 
-		return numCraftable, numCraftableBank
+		return inventoryCount
 	end
 
-
-	local invscan = 1
-
-	function GnomeWorks:InventoryScan(playerOverride)
-	--DEFAULT_CHAT_FRAME:AddMessage("InventoryScan "..invscan)
-		invscan = invscan + 1
-		local player = playerOverride or self.player
-		local cachedInventory = self.data.inventoryData[player]
-
-		local inventoryData = {}
-		local numInBags, numInBank
-
-		local reagent
-
-		if GnomeWorksDB.reagentUsage then
-			for reagentID in pairs(GnomeWorksDB.reagentUsage) do
-
-		--DebugSpam("reagent "..GetItemInfo(reagentID).." "..(inventoryData[reagentID] or "nil"))
-
-				if reagentID and not inventoryData[reagentID] then								-- have we calculated this one yet?
-					if self.player == (UnitName("player")) then								-- if this is the current player, use the api
-						numInBags = GetItemCount(reagentID)
-						numInBank = GetItemCount(reagentID,true)								-- both bank and bags, actually
-					elseif cachedInventory and cachedInventory[reagentID] then										-- otherwise, use the what cached data is available
-	--[[
-						local data = { string.split(" ", cachedInventory[reagentID]) }
-
-						if #data == 1 then
-							numInBags = data[1]
-							numInBank = data[1]
-						elseif #data == 2 then
-							numInBags = data[1]
-							numInBank = data[2]
-						else
-							numInBags = data[1]
-							numInBank = data[3]
-						end
-	]]
-						local a,b,c,d = string.match(cachedInventory[reagentID],"(%d+) (%d+) (%d+) (%d+)")
-
-						numInBags = tonumber(a)
-						numInBank = tonumber(c)
-					else
-						numInBags = 0
-						numInBank = 0
-					end
-
-
-					inventoryData[reagentID] = string.format("%d %d %d %d",numInBags, numInBags, numInBank, numInBank)							-- if items are all in bags, then leave off bank
-
-		--DebugSpam(inventoryData[reagentID])
-				end
-			end
-		end
-
-		self.data.inventoryData[player] = inventoryData
-
-
-		itemVisited = {}							-- this is a simple infinite loop avoidance scheme: basically, don't visit the same node twice
-
-		if inventoryData then
-			-- now calculate the craftability of these same reagents
-			for reagentID,inventory in pairs(inventoryData) do
-				self:InventoryReagentCraftability(reagentID, player)
-			end
-
-			-- remove any reagents that don't show up in our inventory
-			for reagentID,inventory in pairs(inventoryData) do
-				if inventoryData[reagentID] == "0 0 0 0" then
-					inventoryData[reagentID] = nil
-				end
-			end
-		end
-
---	DebugSpam("InventoryScan Complete")
-	end
 
 
 
 
 	-- recipe iteration check: calculate how many times a recipe can be iterated with materials available
 	-- (not to be confused with the reagent craftability which is designed to determine how many craftable reagents are available for recipe iterations)
-	function GnomeWorks:InventoryRecipeIterations(recipeID, playerOverride)
-		local player = playerOverride or self.player
+	function GnomeWorks:InventoryRecipeIterations(recipeID, player, containerList)
 		local recipe = GnomeWorks.data.recipeDB[recipeID]
 
 		if recipe and recipe.reagentData then							-- make sure that recipe is in the database before continuing
 			local numCraftable = 100000000
-			local numCraftableVendor = 100000000
-			local numCraftableBank = 100000000
-			local numCraftableAlts = 100000000
 
 			local vendorOnly = true
 
@@ -211,56 +136,15 @@ do
 					local reagentID = recipe.reagentData[i].id
 					local numNeeded = recipe.reagentData[i].numNeeded
 
-					local reagentAvailabilityAlts = 0
+					local reagentAvailability = self:GetInventoryCount(reagentID, player, containerList)
 
-					local _, reagentAvailability, _, reagentAvailabilityBank = self:GetInventory(player, reagentID)
-	--[[
-					if self:VendorSellsReagent(reagentID) then								-- maybe should be an option, but if the item is available at vendors then assume the player could easily get some
-						local _,_,_,_,_,_,_,stackSize = GetItemInfo(reagentID)
-						local _,_,_,_,_,_,_,stackSizeMade = GetItemInfo(recipe.itemID)
-
-						reagentAvailabilityBank = math.max((stackSize or 1), math.floor((stackSizeMade or 1)/recipe.numMade)*numNeeded)
-						reagentAvailabilityAlts = reagentAvailabilityBank
-					else
-						for player in pairs(self.db.server.inventoryData) do
-
-							local _,_,_, altBank = self:GetInventory(player, reagentID)
-
-							reagentAvailabilityAlts = reagentAvailabilityAlts + (altBank or 0)
-						end
-					end
-	]]
-
-
-
-					for player in pairs(self.data.inventoryData) do
-						local _,_,_, altBank = self:GetInventory(player, reagentID)
-
-						reagentAvailabilityAlts = reagentAvailabilityAlts + (altBank or 0)
-					end
-
-					if self:VendorSellsItem(reagentID) then											-- if it's available from a vendor, then only worry about bag inventory
-						numCraftable = math.min(numCraftable, math.floor(reagentAvailability/numNeeded))
-					else
+					if not self:VendorSellsItem(reagentID) then
 						vendorOnly = nil
-
-						numCraftable = math.min(numCraftable, math.floor(reagentAvailability/numNeeded))
-						numCraftableVendor = math.min(numCraftableVendor, math.floor(reagentAvailability/numNeeded))
-						numCraftableBank = math.min(numCraftableBank, math.floor(reagentAvailabilityBank/numNeeded))
-						numCraftableAlts = math.min(numCraftableAlts, math.floor(reagentAvailabilityAlts/numNeeded))
 					end
 
-
-					if (numCraftableAlts == 0) then
-						break
-					end
-
+					numCraftable = math.min(numCraftable, math.floor(reagentAvailability/numNeeded))
 				else												-- no data means no craftability
 					numCraftable = 0
-					numCraftableVendor = 0
-					numCraftableBank = 0
-					numCraftableAlts = 0
-
 --					self.dataScanned = false						-- mark the data as needing to be rescanned since a reagent id seems corrupt
 				end
 			end
@@ -268,17 +152,17 @@ do
 			recipe.unlimited = vendorOnly
 
 
-			return math.max(0,numCraftable), math.max(0,numCraftableVendor), math.max(0,numCraftableBank), math.max(0,numCraftableAlts)
+			return math.max(0,numCraftable)
 		else
 			DEFAULT_CHAT_FRAME:AddMessage("can't calc craft iterations!")
 		end
 
-		return 0, 0, 0, 0
+		return 0
 	end
 
 
 
-
+--[[
 	function GnomeWorks:InventoryRecipeIterationsBagOnly(recipeID, playerOverride)
 		local player = playerOverride or self.player
 		local recipe = GnomeWorks.data.recipeDB[recipeID]
@@ -364,4 +248,138 @@ do
 
 		return 0, 0, 0, 0			-- bags, bagsCraftable, bank, bankCraftable, alt, altCraftable
 	end
+]]
+
+
+	function GnomeWorks:SetInventoryCount(itemID, player, container, count)
+		self.data.inventoryData[player][container][itemID] = count
+	end
+
+
+	function GnomeWorks:GetInventoryCount(itemID, player, containerList)
+		if player ~= "faction" then
+			local inventoryData = self.data.inventoryData[player]
+
+			if inventoryData then
+				local count = 0
+
+				for container in string.gmatch(containerList, "%a+") do
+					if container == "vendor" then
+						if self:VendorSellsItem(itemID) then
+							return 100000
+						end
+					else
+						if inventoryData[container] then
+							count = count + (inventoryData[container][itemID] or 0)
+						end
+					end
+				end
+
+				return count
+			end
+
+			return 0
+		else
+			local count = 0
+
+			for player, inventoryData in pairs(self.data.inventoryData) do
+
+				for container in string.gmatch(containerList, "%a+") do
+
+					if container == "vendor" then
+						if self:VendorSellsItem(itemID) then
+							return 100000
+						end
+					else
+						if inventoryData[container] then
+							count = count + (inventoryData[container][itemID] or 0)
+						end
+					end
+				end
+			end
+
+			return count
+		end
+
+		return 0
+	end
+
+
+	local invscan = 1
+
+	function GnomeWorks:InventoryScan(playerOverride)
+		local scanTime = GetTime()
+	--DEFAULT_CHAT_FRAME:AddMessage("InventoryScan "..invscan)
+		invscan = invscan + 1
+		local player = playerOverride or self.player
+		local inventory = self.data.inventoryData[player]
+
+		if inventory then
+			if not inventory["bag"] then
+				inventory["bag"] = {}
+			end
+
+			if not inventory["bank"] then
+				inventory["bank"] = {}
+			end
+
+			if not inventory["craftedBag"] then
+				inventory["craftedBag"] = {}
+			end
+
+			if not inventory["craftedBank"] then
+				inventory["craftedBank"] = {}
+			end
+
+
+			if player == (UnitName("player")) then
+				for reagentID in pairs(GnomeWorksDB.reagentUsage) do
+
+					if reagentID then
+						local inBag = GetItemCount(reagentID)
+						local inBank = GetItemCount(reagentID,true)
+
+						if inBag>0 then
+							inventory["bag"][reagentID] = inBag
+						else
+							inventory["bag"][reagentID] = nil
+						end
+
+						if inBank>0 then
+							inventory["bank"][reagentID] = inBank
+						else
+							inventory["bank"][reagentID] = nil
+						end
+			--DebugSpam(inventoryData[reagentID])
+					end
+				end
+			end
+
+			local craftedBag = table.wipe(inventory["craftedBag"])
+			local craftedBank = table.wipe(inventory["craftedBank"])
+
+			for reagentID, count in pairs(inventory["bag"]) do
+				craftedBag[reagentID] = count
+			end
+
+			for reagentID, count in pairs(inventory["bank"]) do
+				craftedBank[reagentID] = count
+			end
+
+
+			table.wipe(itemVisited)							-- this is a simple infinite loop avoidance scheme: basically, don't visit the same node twice
+
+			for reagentID in pairs(GnomeWorksDB.reagentUsage) do
+
+				if GnomeWorksDB.itemSource[reagentID] then
+					self:InventoryReagentCraftability(craftedBag, reagentID, player, "craftedBag queue")
+					self:InventoryReagentCraftability(craftedBank, reagentID, player, "craftedBank queue")
+				end
+			end
+		end
+
+--	DebugSpam("InventoryScan Complete")
+		DebugSpam("Inventory Scanned in ",math.floor((GetTime()-scanTime)*100)/100," seconds")
+	end
+
 end

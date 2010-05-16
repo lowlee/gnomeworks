@@ -179,8 +179,6 @@ do
 			local isLinked,player = IsTradeSkillLinked()
 
 			if player and isLinked then
-
-
 				if player == UnitName("player") then -- and (rank ~= self:GetTradeSkillRank(player, tradeID) or rank == 0) then
 	--				player = player.." ShoppingList"
 					player = "All Recipes"
@@ -206,11 +204,7 @@ do
 	function GnomeWorks:ParseSkillList()
 		local playerName = UnitName("player")
 
-		if not self.data.playerData then
-			self.data.playerData = {}
-		end
-
-		self.data.playerData[playerName] = { links = {}, build = clientBuild }
+		self.data.playerData[playerName] = { links = {}, build = clientBuild, guild = GetGuildInfo("player") }
 
 		local playerData = self.data.playerData[playerName]
 
@@ -355,7 +349,7 @@ do
 		local isLinked, playerLinked = IsTradeSkillLinked()
 
 		if isLinked then
-			self:CacheTradeSkillLink(GetTradeSkillListLink()) -- this makes a temporary slot, then it will be over-written by the hooked method
+--			self:CacheTradeSkillLink(GetTradeSkillListLink()) -- this makes a temporary slot, then it will be over-written by the hooked method
 
 			player = playerLinked
 			if player == UnitName("player") then -- and (rank ~= self:GetTradeSkillRank(player, tradeID) or rank == 0) then
@@ -437,14 +431,9 @@ do
 
 		for i = 1, numSkills, 1 do
 			repeat
-	--DebugSpam("scanning index "..i)
 				local subSpell, extra
 
-
 				local skillName, skillType = GetTradeSkillInfo(i)
-
-
-	--DebugSpam("**** skill: "..(skillName or "nil"))
 
 				gotNil = false
 
@@ -516,9 +505,9 @@ do
 							local recipe = data.recipeDB[recipeID]
 
 							recipe.tradeID = tradeID
-							recipe.spellID = recipeID
+--							recipe.spellID = recipeID
 
-							recipe.name = skillName
+--							recipe.name = skillName
 
 							local itemLink = GetTradeSkillItemLink(i)
 
@@ -594,12 +583,8 @@ do
 --	DebugSpam("Scan Complete")
 
 
+
 		GnomeWorks:InventoryScan()
---		GnomeWorks:CalculateCraftableCounts()
---[[
-		Skillet:SortAndFilterRecipes()
-	DebugSpam("all sorted")
-]]
 
 
 

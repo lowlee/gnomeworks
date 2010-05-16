@@ -355,7 +355,7 @@ do
 
 		if recipeData[recipeID] then
 			for r,reagentInfo in pairs(recipeData[recipeID].reagentData) do
-				local inBags = GnomeWorks:GetInventory(player, reagentInfo.id)
+				local inBags = GnomeWorks:GetInventoryCount(reagentInfo.id, player, "bag")
 
 
 				local inQueue = count * reagentInfo.numNeeded
@@ -575,7 +575,7 @@ do
 		frame.playerNameFrame = playerName
 
 
-		frame:SetParent(self.MainWindow)
+--		frame:SetParent(self.MainWindow)
 
 
 		CreateControlButtons(frame)

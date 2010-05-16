@@ -79,18 +79,24 @@ do
 			end
 		end
 
-		InitDBTables("config", "itemSource", "reagentUsage", "serverData", "vendorItems")
+		InitDBTables("config", "itemSource", "reagentUsage", "serverData", "vendorItems", "recipeDB")
 
 
 
 		local function InitServerDBTables(server, var, ...)
 			if var then
+				local player = UnitName("player")
+
 				if not GnomeWorksDB.serverData[server] then
 					GnomeWorksDB.serverData[server] = { [var] = {}}
 				else
 					if not GnomeWorksDB.serverData[server][var] then
 						GnomeWorksDB.serverData[server][var] = {}
 					end
+				end
+
+				if not GnomeWorksDB.serverData[server][var][player] then
+					GnomeWorksDB.serverData[server][var][player] = {}
 				end
 
 				GnomeWorks.data[var] = GnomeWorksDB.serverData[server][var]
@@ -103,6 +109,8 @@ do
 		InitServerDBTables(GetRealmName().."-"..UnitFactionGroup("player"), "playerData", "inventoryData", "queueData", "recipeGroupData")
 
 		GnomeWorks.data.constructionQueue = {}
+
+		GnomeWorks.data.inventoryData["All Recipes"] = {}
 
 
 		GnomeWorks.blizzardFrameShow = TradeSkillFrame_Show
@@ -127,8 +135,11 @@ do
 		GnomeWorks:RegisterEvent("TRADE_SKILL_UPDATE")
 		GnomeWorks:RegisterEvent("TRADE_SKILL_CLOSE")
 
+		GnomeWorks:RegisterEvent("CHAT_MSG_SKILL")
+
 
 		GnomeWorks:RegisterEvent("MERCHANT_UPDATE")
+		GnomeWorks:RegisterEvent("MERCHANT_SHOW")
 
 
 		hooksecurefunc("SetItemRef", function(s,link,button)
@@ -136,6 +147,8 @@ do
 				GnomeWorks:CacheTradeSkillLink(link)
 			end
 		end)
+
+		collectgarbage("collect")
 	end
 
 

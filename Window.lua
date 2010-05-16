@@ -209,7 +209,7 @@ do
 		local frame = CreateFrame("Frame",frameName,UIParent)
 		frame:Hide()
 
-		frame:SetFrameStrata("DIALOG")
+--		frame:SetFrameStrata("DIALOG")
 
 
 		frame:SetResizable(true)
@@ -263,6 +263,13 @@ do
 		frame:SetScript("OnHide", function() frame:StopMovingOrSizing() frame:SavePosition() end)
 
 
+		local windowMenu = {
+			{ text = "Raise Frame", func = function() frame:SetFrameStrata("DIALOG")  if frame.title then frame.title:SetFrameStrata("DIALOG") end end },
+			{ text = "Lower Frame", func = function() frame:SetFrameStrata("LOW") if frame.title then frame.title:SetFrameStrata("LOW") end end },
+		}
+
+		windowMenuFrame = CreateFrame("Frame", "GWWindowMenuFrame", getglobal("UIParent"), "UIDropDownMenuTemplate")
+
 
 		local mover = CreateFrame("Frame",nil,frame)
 		mover:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",0,0)
@@ -291,13 +298,6 @@ do
 
 
 		if windowTitle then
-			local windowMenu = {
-				{ text = "Raise Frame", func = function() frame:SetFrameStrata("DIALOG")  frame.title:SetFrameStrata("DIALOG") end },
-				{ text = "Lower Frame", func = function() frame:SetFrameStrata("LOW") frame.title:SetFrameStrata("LOW") end },
-			}
-
-			windowMenuFrame = CreateFrame("Frame", "GYPWindowMenuFrame", getglobal("UIParent"), "UIDropDownMenuTemplate")
-
 			local title = CreateFrame("Button",nil,UIParent)
 
 			local titleSize = 20
@@ -335,7 +335,7 @@ do
 			title:Hide()
 
 
-			title:SetFrameStrata("DIALOG")
+--			title:SetFrameStrata("DIALOG")
 
 			title:SetScript("OnDoubleClick", function(self, button)
 				if button == "LeftButton" then
@@ -394,7 +394,7 @@ do
 		local closeButton = CreateFrame("Button",nil,frame,"UIPanelCloseButton")
 		closeButton:SetPoint("TOPRIGHT",6,6)
 		closeButton:SetScript("OnClick", function() frame:Hide() if frame.title then frame.title:Hide() end end)
-		closeButton:SetFrameLevel(closeButton:GetFrameLevel()+10)
+--		closeButton:SetFrameLevel(closeButton:GetFrameLevel()+10)
 		closeButton:SetHitRectInsets(8,8,8,8)
 
 		return frame
