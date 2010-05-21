@@ -91,10 +91,10 @@ do
 
 
 			for k,i in pairs(ALLQUADS) do
-				frame.backDrop["texture"..i] =  frame:CreateTexture(nil, "BACKGROUND")
+				frame.backDrop["texture"..i] =  frame:CreateTexture(nil, "ARTWORK")
 			end
 
-			frame.backDrop.textureBG = frame:CreateTexture(nil,"BACKGROUND")
+			frame.backDrop.textureBG = frame:CreateTexture(nil,"ARTWORK")
 		end
 
 		frame.backDrop.edgeSize = bd.edgeSize
@@ -304,14 +304,14 @@ do
 
 			title:SetHeight(titleSize)
 
-			title.textureLeft = title:CreateTexture()
+			title.textureLeft = title:CreateTexture(nil, "BORDER")
 			title.textureLeft:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTexture.tga")
 			title.textureLeft:SetPoint("LEFT",0,0)
 			title.textureLeft:SetWidth(titleSize*2)
 			title.textureLeft:SetHeight(titleSize)
 			title.textureLeft:SetTexCoord(0, 1, 0, .5)
 
-			title.textureRight = title:CreateTexture()
+			title.textureRight = title:CreateTexture(nil, "BORDER")
 			title.textureRight:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTexture.tga")
 			title.textureRight:SetPoint("RIGHT",0,0)
 			title.textureRight:SetWidth(titleSize*2)
@@ -319,7 +319,7 @@ do
 			title.textureRight:SetTexCoord(0, 1.0, 0.5, 1.0)
 
 
-			title.textureCenter = title:CreateTexture()
+			title.textureCenter = title:CreateTexture(nil, "BORDER")
 			title.textureCenter:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTextureCenter.tga", true)
 			title.textureCenter:SetHeight(titleSize)
 	--		title.textureCenter:SetWidth(30)
@@ -377,10 +377,12 @@ do
 			title.textureCenter:SetTexCoord(0.0, (w/h), 0.0, 1.0)
 
 
+			title:SetToplevel(true)
 
 			frame.title = title
 		end
 
+		frame:SetToplevel(true)
 
 --[[
 		local x = frame:CreateTexture(nil,"ARTWORK")
@@ -394,7 +396,7 @@ do
 		local closeButton = CreateFrame("Button",nil,frame,"UIPanelCloseButton")
 		closeButton:SetPoint("TOPRIGHT",6,6)
 		closeButton:SetScript("OnClick", function() frame:Hide() if frame.title then frame.title:Hide() end end)
---		closeButton:SetFrameLevel(closeButton:GetFrameLevel()+10)
+		closeButton:SetFrameLevel(closeButton:GetFrameLevel()+1)
 		closeButton:SetHitRectInsets(8,8,8,8)
 
 		return frame

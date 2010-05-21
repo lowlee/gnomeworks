@@ -60,6 +60,60 @@ end
 do
 
 
+	function GnomeWorks:ConvertRecipeDB()
+		local reagentTable, itemTable, tradeTable = {}, {}, {}
+
+		for recipeID, recipeData in pairs(GnomeWorksDB.recipeDB) do
+			local rtable = {}
+
+			for i=1,#recipeData.reagentData do
+				rtable[recipeData.reagentData[i].id] = recipeData.reagentData[i].numNeeded
+			end
+
+			reagentTable[recipeID] = rtable
+
+			itemTable[recipeID] = { [recipeData.itemID] = recipeData.numMade }
+			tradeTable[recipeID] = recipeData.tradeID
+		end
+
+
+--		GnomeWorksDB.recipeDB = nil
+		GnomeWorksDB.reagentTable = reagentTable
+		GnomeWorksDB.itemTable = itemTable
+		GnomeWorksDB.tradeTable = tradeTable
+
+	end
+
+
+	function GnomeWorks:ConvertRecipeDB2()
+		local recipeDB = {}
+
+		for recipeID, reagents in pairs(GnomeWorksDB.reagents) do
+			recipeDB[recipeID] = { reagents = reagents, results = GnomeWorksDB.results[recipeID], tradeID = GnomeWorksDB.tradeIDs[recipeID] }
+		end
+
+		GnomeWorks.data.recipeDB = recipeDB
+	end
+
+
+	function memUsage(t)
+		local slots = 0
+		local bytes = 0
+		local size = 1
+
+		for k,v in pairs(t) do
+			if type(v)=="table" then
+				bytes = bytes + memUsage(v)
+			end
+			slots = slots + 1
+			if slots > size then
+				size = size * 2
+			end
+		end
+
+		return bytes + size * 40
+	end
+
 
 	function GnomeWorks:OnLoad()
 		if LibStub then
@@ -75,11 +129,11 @@ do
 
 				InitDBTables(...)
 
-				GnomeWorks.data[var] = GnomeWorksDB[var]
+--				GnomeWorks.data[var] = GnomeWorksDB[var]
 			end
 		end
 
-		InitDBTables("config", "itemSource", "reagentUsage", "serverData", "vendorItems", "recipeDB")
+		InitDBTables("config", "serverData", "vendorItems", "results", "names", "reagents", "tradeIDs", "vendorOnly")
 
 
 
@@ -105,10 +159,41 @@ do
 			end
 		end
 
-
-		InitServerDBTables(GetRealmName().."-"..UnitFactionGroup("player"), "playerData", "inventoryData", "queueData", "recipeGroupData")
+--[[
+		print("results mem usage = ",math.floor(memUsage(GnomeWorksDB.results)/1024).."kb")
+		print("reagents mem usage = ",math.floor(memUsage(GnomeWorksDB.reagents)/1024).."kb")
+		print("tradeIDs mem usage = ",math.floor(memUsage(GnomeWorksDB.tradeIDs)/1024).."kb")
+]]
+		InitServerDBTables(GetRealmName().."-"..UnitFactionGroup("player"), "playerData", "inventoryData", "queueData", "recipeGroupData", "cooldowns")
 
 		GnomeWorks.data.constructionQueue = {}
+
+		local itemSource = {}
+		for recipeID, results in pairs(GnomeWorksDB.results) do
+			for itemID, numMade in pairs(results) do
+				if itemSource[itemID] then
+					itemSource[itemID][recipeID] = numMade
+				else
+					itemSource[itemID] = { [recipeID] = numMade }
+				end
+			end
+		end
+		GnomeWorks.data.itemSource = itemSource
+--		print("itemSource mem usage = ",math.floor(memUsage(itemSource)/1024).."kb")
+
+		local reagentUsage = {}
+		for recipeID, reagents in pairs(GnomeWorksDB.reagents) do
+			for itemID, numNeeded in pairs(reagents) do
+				if reagentUsage[itemID] then
+					reagentUsage[itemID][recipeID] = numNeeded
+				else
+					reagentUsage[itemID] = { [recipeID] = numNeeded }
+				end
+			end
+		end
+		GnomeWorks.data.reagentUsage = reagentUsage
+--		print("reagetUsage mem usage = ",math.floor(memUsage(reagentUsage)/1024).."kb")
+
 
 		GnomeWorks.data.inventoryData["All Recipes"] = {}
 
@@ -140,6 +225,10 @@ do
 
 		GnomeWorks:RegisterEvent("MERCHANT_UPDATE")
 		GnomeWorks:RegisterEvent("MERCHANT_SHOW")
+
+
+		GnomeWorks:RegisterEvent("BAG_UPDATE")
+
 
 
 		hooksecurefunc("SetItemRef", function(s,link,button)

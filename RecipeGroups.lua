@@ -73,16 +73,19 @@ function GnomeWorks:RecipeGroupNew(player, tradeID, label, name)
 		return existingGroup
 	else
 --DebugSpam("new group "..(name or OVERALL_PARENT_GROUP_NAME))
-		local newGroup = {}
 
 		local key = player..":"..tradeID..":"..label
 
+		local newGroup = { expanded = true, key = key, name = name or OVERALL_PARENT_GROUP_NAME, entries = {}, skillIndex = serial, locked = false }
+
+--[[
 		newGroup.expanded = true
 		newGroup.key = key
 		newGroup.name = name or OVERALL_PARENT_GROUP_NAME
 		newGroup.entries = {}
 		newGroup.skillIndex = serial
 		newGroup.locked = nil
+]]
 
 		serial = serial + 1
 
@@ -162,12 +165,14 @@ function GnomeWorks:RecipeGroupAddRecipe(group, recipeID, skillIndex, noDB)
 		end
 
 		if not currentEntry then
-			local newEntry = {}
+			local newEntry = { recipeID = recipeID, name = self:GetRecipeName(recipeID), skillIndex = skillIndex, parent = group }
 
+--[[
 			newEntry.recipeID = recipeID
 			newEntry.name = self:GetRecipeName(recipeID)
 			newEntry.skillIndex = skillIndex
 			newEntry.parent = group
+]]
 
 			table.insert(group.entries, newEntry)
 
@@ -200,16 +205,16 @@ function GnomeWorks:RecipeGroupAddSubGroup(group, subGroup, skillIndex, noDB)
 		end
 
 		if not currentEntry then
-			local newEntry = {}
+			local newEntry = { subGroup = subGroup, skillIndex = skillIndex, name = subGroup.name, parent = group }
 
 			subGroup.parent = group
 			subGroup.skillIndex = skillIndex
-
+--[[
 			newEntry.subGroup = subGroup
 			newEntry.skillIndex = skillIndex
 			newEntry.name = subGroup.name
 			newEntry.parent = group
-
+]]
 			table.insert(group.entries, newEntry)
 		else
 			subGroup.parent = group
@@ -427,23 +432,6 @@ function GnomeWorks:RecipeGroupSort(group, sortMethod, reverse)
 	end
 end
 
-
-local flatHeader = {}
-
-function GnomeWorks:RecipeGroupInitFlatten(group, list)
-	if group and list then
-		local newSkill = flatHeader
-
-		newSkill.name = group.name
-		newSkill.skillIndex = group.skillIndex
-		newSkill.subGroup = group
-		newSkill.expanded = true
-		newSkill.depth = 0
-		newSkill.parent = group.parent
-
-		list[1] = newSkill
-	end
-end
 
 
 function GnomeWorks:RecipeGroupFlatten(group, depth, list, index)

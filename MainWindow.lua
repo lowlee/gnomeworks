@@ -214,7 +214,10 @@ do
 			["bgcolor"] = colorBlack,
 			["tooltipText"] = "click to sort\rright-click to filter",
 			["font"] = "GameFontHighlightSmall",
-			["draw"] =	function (rowFrame,cellFrame,entry)
+			["sortCompare"] = function(a,b)
+				return (a.itemLevel or 0) - (b.itemLevel or 0)
+			end,
+			["draw"] = function (rowFrame,cellFrame,entry)
 							if entry.subGroup then
 								cellFrame.text:SetText("")
 								return
@@ -236,13 +239,36 @@ do
 --								local _,skillType,craftable = GetTradeSkillInfo(i)
 
 						end,
-				["OnClick"] = 	function(cellFrame, button)
+			["OnClick"] = function(cellFrame, button, source)
+							if cellFrame:GetParent().rowIndex == 0 then
 								if button == "RightButton" then
 									local x, y = GetCursorPosition()
 									local uiScale = UIParent:GetEffectiveScale()
 
 									EasyMenu(levelFilterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
+								else
+									sf.sortInvert = (sf.SortCompare == cellFrame.header.sortCompare) and not sf.sortInvert
+
+									sf:HighlightColumn(cellFrame.header.name, sf.sortInvert)
+									sf.SortCompare = cellFrame.header.sortCompare
+									sf:Refresh()
 								end
+							end
+						end,
+			["OnEnter"] =	function (cellFrame)
+								if cellFrame:GetParent().rowIndex == 0 then
+									GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+									GameTooltip:ClearLines()
+									GameTooltip:AddLine("Required Skill Level",1,1,1,true)
+
+									GameTooltip:AddLine("Left-click to Sort")
+									GameTooltip:AddLine("Right-click to Adjust Filterings")
+
+									GameTooltip:Show()
+								end
+							end,
+			["OnLeave"] = 	function()
+								GameTooltip:Hide()
 							end,
 		}, -- [1]
 		{
@@ -257,6 +283,9 @@ do
 			["width"] = 250,
 			["bgcolor"] = colorDark,
 			["tooltipText"] = "click to sort\rright-click to filter",
+			["sortCompare"] = function(a,b)
+				return (a.skillIndex or 0) - (b.skillIndex or 0)
+			end,
 			["OnClick"] = function(cellFrame, button, source)
 								if cellFrame:GetParent().rowIndex>0 then
 									local entry = cellFrame.data
@@ -291,6 +320,12 @@ do
 												cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
 												cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
 											end
+										else
+											sf.sortInvert = (sf.SortCompare == cellFrame.header.sortCompare) and not sf.sortInvert
+
+											sf:HighlightColumn(cellFrame.header.name, sf.sortInvert)
+											sf.SortCompare = cellFrame.header.sortCompare
+											sf:Refresh()
 										end
 									end
 								end
@@ -338,6 +373,21 @@ do
 
 							cellFrame.text:SetTextColor(cr,cg,cb)
 						end,
+			["OnEnter"] =	function (cellFrame)
+								if cellFrame:GetParent().rowIndex == 0 then
+									GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+									GameTooltip:ClearLines()
+									GameTooltip:AddLine("Recipe Name",1,1,1,true)
+
+									GameTooltip:AddLine("Left-click to Sort")
+									GameTooltip:AddLine("Right-click to Adjust Filterings")
+
+									GameTooltip:Show()
+								end
+							end,
+			["OnLeave"] = 	function()
+								GameTooltip:Hide()
+							end,
 		}, -- [2]
 		{
 			["font"] = "GameFontHighlightSmall",
@@ -347,12 +397,23 @@ do
 			["bgcolor"] = colorBlack,
 			["tooltipText"] = "click to sort\rright-click to filter",
 			["dataField"]= "craftBag",
-			["OnClick"] = 	function(cellFrame, button)
-								if button == "RightButton" then
-									local x, y = GetCursorPosition()
-									local uiScale = UIParent:GetEffectiveScale()
+			["sortCompare"] = function(a,b)
+				return (a.craftAlt or 0) - (b.craftAlt or 0)
+			end,
+			["OnClick"] = 	function(cellFrame, button, source)
+								if cellFrame:GetParent().rowIndex == 0 then
+									if button == "RightButton" then
+										local x, y = GetCursorPosition()
+										local uiScale = UIParent:GetEffectiveScale()
 
-									EasyMenu(craftFilterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
+										EasyMenu(craftFilterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
+									else
+										sf.sortInvert = (sf.SortCompare == cellFrame.header.sortCompare) and not sf.sortInvert
+
+										sf:HighlightColumn(cellFrame.header.name, sf.sortInvert)
+										sf.SortCompare = cellFrame.header.sortCompare
+										sf:Refresh()
+									end
 								end
 							end,
 			["draw"] =	function (rowFrame,cellFrame,entry)
@@ -361,7 +422,7 @@ do
 								return
 							end
 
-							if GnomeWorks.data.recipeDB[entry.recipeID].unlimited then
+							if GnomeWorksDB.vendorOnly[entry.recipeID] then
 								if entry.craftBag and entry.craftBag ~= 0 then
 									cellFrame.text:SetFormattedText("%s%d|r/\226\136\158",cbag,entry.craftBag)
 								else
@@ -415,7 +476,7 @@ do
 									local entry = cellFrame:GetParent().data
 
 									if entry and entry.recipeID then
-										if GnomeWorks.data.recipeDB[entry.recipeID].unlimited then
+										if GnomeWorksDB.vendorOnly[entry.recipeID] then
 											GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
 											GameTooltip:ClearLines()
 											GameTooltip:AddLine("Recipe Craftability",1,1,1,true)
@@ -425,7 +486,7 @@ do
 												GameTooltip:AddDoubleLine("|cffffff80bags",entry.craftBag)
 											end
 
-											GameTooltip:AddLine("Vendor Sells All Reagents")
+											GameTooltip:AddLine("\226\136\158 = unlimited through vendor")
 											GameTooltip:Show()
 
 										elseif entry.craftAlt and entry.craftAlt > 0 then
@@ -669,7 +730,7 @@ do
 	end
 
 
-	function GnomeWorks:DoUpdate()
+	function GnomeWorks:DoTradeSkillUpdate()
 		if frame:IsVisible() then
 			self:ScanTrade()
 
@@ -736,12 +797,11 @@ do
 
 
 	function GnomeWorks:TRADE_SKILL_UPDATE(...)
-print("TRADE_SKILL_UPDATE")
 		if self.updateTimer then
 			self:CancelTimer(self.updateTimer, true)
 		end
 
-		self.updateTimer = self:ScheduleTimer("DoUpdate",.1)
+		self.updateTimer = self:ScheduleTimer("DoTradeSkillUpdate",.1)
 	end
 
 
@@ -775,32 +835,31 @@ print("TRADE_SKILL_UPDATE")
 
 
 
-	local function SelectTradeLink(frame)
+	local function SelectTradeSkill(menuFrame, player, tradeLink)
+		ToggleDropDownMenu(1, nil, playerSelectMenu, menuFrame, menuFrame:GetWidth(), 0)
+		local tradeString = string.match(tradeLink, "(trade:%d+:%d+:%d+:[0-9a-fA-F]+:[A-Za-z0-9+/]+)")
 
-		local function SelectTradeSkill(menuFrame, player, tradeLink)
-			ToggleDropDownMenu(1, nil, playerSelectMenu, menuFrame, menuFrame:GetWidth(), 0)
-			local tradeString = string.match(tradeLink, "(trade:%d+:%d+:%d+:[0-9a-fA-F]+:[A-Za-z0-9+/]+)")
+		if (UnitName("player")) == player then
+			local tradeName = GetSpellInfo(string.match(tradeString, "trade:(%d+)"))
 
-			if (UnitName("player")) == player then
-				local tradeName = GetSpellInfo(string.match(tradeString, "trade:(%d+)"))
-
-				if ((GetTradeSkillLine() == "Mining" and "Smelting") or GetTradeSkillLine()) ~= tradeName or IsTradeSkillLinked() then
-					CastSpellByName(tradeName)
-				end
-			else
-				SetItemRef(tradeString,tradeLink,"LeftButton")
+			if ((GetTradeSkillLine() == "Mining" and "Smelting") or GetTradeSkillLine()) ~= tradeName or IsTradeSkillLinked() then
+				CastSpellByName(tradeName)
 			end
+		else
+			SetItemRef(tradeString,tradeLink,"LeftButton")
 		end
+	end
 
 
+	local SelectTradeLink do
 		local function InitMenu(menuFrame, level)
 			if (level == 1) then  -- character names
 				local title = {}
 				local playerMenu = {}
 
 				title.text = "Select Player and Tradeskill"
---				title.isTitle = true
---				title.notClickable = true
+	--				title.isTitle = true
+	--				title.notClickable = true
 				title.fontObject = "GameFontNormal"
 
 
@@ -848,12 +907,14 @@ print("TRADE_SKILL_UPDATE")
 			end
 		end
 
-		if not playerSelectMenu then
-			playerSelectMenu = CreateFrame("Frame", "GWPlayerSelectMenu", getglobal("UIParent"), "UIDropDownMenuTemplate")
-		end
+		function SelectTradeLink(frame)
+			if not playerSelectMenu then
+				playerSelectMenu = CreateFrame("Frame", "GWPlayerSelectMenu", getglobal("UIParent"), "UIDropDownMenuTemplate")
+			end
 
-		UIDropDownMenu_Initialize(playerSelectMenu, InitMenu, "MENU")
-		ToggleDropDownMenu(1, nil, playerSelectMenu, frame, 0, 0)
+			UIDropDownMenu_Initialize(playerSelectMenu, InitMenu, "MENU")
+			ToggleDropDownMenu(1, nil, playerSelectMenu, frame, 0, 0)
+		end
 	end
 
 

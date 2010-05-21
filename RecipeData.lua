@@ -93,11 +93,10 @@ do
 	for tradeSkill, cooldownGroup in pairs(cooldownGroups) do
 		for groupName, data in pairs(cooldownGroup) do
 			for i=1,#data.spells do
-				spellCooldown[data.spells[i]] = cooldownGroup
+				spellCooldown[ data.spells[i] ] = cooldownGroup
 			end
 		end
 	end
-
 
 	function GnomeWorks:GetSpellCooldownGroup(recipeID)
 		return spellCooldown[recipeID]
@@ -105,23 +104,13 @@ do
 
 
 	function GnomeWorks:GetRecipeName(recipeID)
-		return (GetSpellInfo(recipeID))
-
---[[	if self.data.recipeDB[recipeID] then
-			return self.data.recipeDB[recipeID].name
-		end
-
-		return "recipe:"..recipeID
-		]]
+		return GnomeWorksDB.names[recipeID] or (GetSpellInfo(recipeID))
 	end
 
 
 	function GnomeWorks:GetRecipeTradeID(recipeID)
-		local data = self.data.recipeDB[recipeID]
-
-		if data then
-			return data.tradeID
-		end
+		return GnomeWorksDB.tradeIDs[recipeID]
 	end
-
 end
+
+

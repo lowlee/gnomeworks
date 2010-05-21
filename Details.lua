@@ -28,6 +28,9 @@ do
 	local calt = "|cffff80ff"
 
 
+	local tooltipScanner = CreateFrame("GameTooltip", "GWParsingTooltip", getglobal("ANCHOR_NONE"), "GameTooltipTemplate")
+
+	tooltipScanner:SetOwner(WorldFrame, "ANCHOR_NONE")
 
 	local columnHeaders = {
 		{
@@ -64,7 +67,7 @@ do
 
 							if GnomeWorks:VendorSellsItem(entry.id) then
 								cellFrame.text:SetTextColor(.25,1.0,.25)
-							elseif GnomeWorksDB.itemSource[entry.id] then
+							elseif GnomeWorks.data.itemSource[entry.id] then
 								cellFrame.text:SetTextColor(.25,.75,1.0)
 							else
 								cellFrame.text:SetTextColor(1,1,1)
@@ -177,10 +180,10 @@ do
 
 		sf = GnomeWorks:CreateScrollingTable(reagentFrame, ScrollPaneBackdrop, columnHeaders, ResizeReagentFrame)
 
-		sf.data = { entries = {} }
+		sf.data = { entries = {  } }
 
 		for i=1,8 do
-			sf.data.entries[i] = { }
+			sf.data.entries[i] = { id = 0, numNeeded = 0 }
 		end
 
 		sf.numData = 0
@@ -192,13 +195,26 @@ do
 		function GnomeWorks:ShowReagents(index)
 			reagentFrame:Show()
 
-			local skillData = self:GetSkillData(index)
-			if skillData then
-				local recipeData = self:GetRecipeData(skillData.id)
+--			local skillData = self:GetSkillData(index)
 
-				sf.data.entries = recipeData.reagentData
+			local recipeID = self.data.skillDB[self.player..":"..self.tradeID].recipeID[index]
 
-				sf.numData = #recipeData.reagentData
+			if recipeID then
+--				local results, reagents, tradeID = self:GetRecipeData(skillData.id)
+
+--				sf.data.entries = recipeData.reagentData
+
+--				sf.numData = #recipeData.reagentData
+
+				local i = 0
+
+				for reagentID, numNeeded in pairs(GnomeWorksDB.reagents[recipeID]) do
+					i = i + 1
+					sf.data.entries[i].id = reagentID
+					sf.data.entries[i].numNeeded = numNeeded
+				end
+
+				sf.data.numEntries = i
 
 				sf:Refresh()
 			end
@@ -208,10 +224,12 @@ do
 	end
 
 
-	function GnomeWorks:CreateDetailFrame(parentFrame)
-		detailFrame = CreateFrame("Frame",nil,parentFrame)
+	function GnomeWorks:CreateDetailFrame(frame)
+		detailFrame = CreateFrame("Frame",nil,frame)
 
 		detailFrame.textScroll = CreateFrame("ScrollFrame", nil, detailFrame)
+
+
 
 		detailFrame.scrollChild = CreateFrame("Frame",nil,detailFrame.textScroll)
 		detailFrame.textScroll:SetScrollChild(detailFrame.scrollChild)
@@ -229,15 +247,18 @@ do
 		detailFrame.textScroll:SetPoint("TOPLEFT",detailFrame,2,-35)
 
 		detailFrame.scrollChild:SetWidth(detailsWidth-4)
-		detailFrame.scrollChild:SetHeight(height+200)
+		detailFrame.scrollChild:SetHeight(height-37)
 
 		detailFrame.scrollChild:SetAlpha(1)
 
 
 
+		detailFrame.textScroll:SetScript("OnScrollRangeChanged", function(self, xRange, yRange)
+			detailFrame.maxScroll =  yRange
+		end)
 
 
-		detailFrame.scrollChild:EnableMouse(true)
+		detailFrame.textScroll:EnableMouse(true)
 
 		detailFrame.maxScroll = 0
 
@@ -270,6 +291,7 @@ do
 		detailIcon:SetScript("OnLeave", GameTooltip_HideResetCursor)
 
 
+
 		local detailNumMadeLabel = detailIcon:CreateFontString(nil,"OVERLAY", "GameFontGreenSmall")
 		detailNumMadeLabel:SetPoint("BOTTOMRIGHT",-2,2)
 		detailNumMadeLabel:SetPoint("TOPLEFT",0,0)
@@ -285,7 +307,14 @@ do
 		detailNameLabel:SetJustifyH("LEFT")
 		detailNameLabel:SetTextColor(1,1,1)
 
+--[[
+		local old_ScrollFrame_OnScrollRangeChanged = ScrollFrame_OnScrollRangeChanged
 
+		ScrollFrame_OnScrollRangeChanged = function(self, x,y)
+			print(self:GetName() or "nil", x,y)
+			old_ScrollFrame_OnScrollRangeChanged(self,x,y)
+		end
+]]
 
 
 	-- scrolling part below
@@ -294,7 +323,7 @@ do
 		local toolsLabel = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 		toolsLabel:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 0,0)
 		toolsLabel:SetPoint("RIGHT", -5,0)
-		toolsLabel:SetHeight(20)
+		toolsLabel:SetHeight(0)
 		toolsLabel:SetJustifyH("LEFT")
 		toolsLabel:SetJustifyV("TOP")
 		toolsLabel:SetTextColor(1,1,1)
@@ -302,7 +331,7 @@ do
 		local cooldownLabel = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 		cooldownLabel:SetPoint("TOPLEFT", toolsLabel, "BOTTOMLEFT", 0,0)
 		cooldownLabel:SetPoint("RIGHT", -5,0)
-		cooldownLabel:SetHeight(20)
+		cooldownLabel:SetHeight(0)
 		cooldownLabel:SetJustifyH("LEFT")
 		cooldownLabel:SetJustifyV("TOP")
 		cooldownLabel:SetTextColor(1,1,1)
@@ -310,28 +339,27 @@ do
 		local descriptionLabel = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 		descriptionLabel:SetPoint("TOPLEFT", cooldownLabel, "BOTTOMLEFT", 0,0)
 		descriptionLabel:SetWidth(detailsWidth - 10)
---		descriptionLabel:SetHeight(20)
+		descriptionLabel:SetHeight(0)
 		descriptionLabel:SetJustifyH("LEFT")
 		descriptionLabel:SetJustifyV("TOP")
 		descriptionLabel:SetTextColor(1,1,1)
 
 
+		local descriptionLabelRight = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		descriptionLabelRight:SetPoint("TOPLEFT", cooldownLabel, "BOTTOMLEFT", 0,0)
+		descriptionLabelRight:SetWidth(detailsWidth - 10)
+		descriptionLabelRight:SetHeight(0)
+		descriptionLabelRight:SetJustifyH("RIGHT")
+		descriptionLabelRight:SetJustifyV("TOP")
+		descriptionLabelRight:SetTextColor(1,1,1)
 
-		local descriptionTextSizeOnly = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-		descriptionTextSizeOnly:SetPoint("TOPLEFT", cooldownLabel, "BOTTOMLEFT", 0,0)
-		descriptionTextSizeOnly:SetWidth(detailsWidth - 10)
-		descriptionTextSizeOnly:SetJustifyH("LEFT")
-		descriptionTextSizeOnly:SetJustifyV("TOP")
-		descriptionTextSizeOnly:Hide()
 
 
-
-		detailFrame.scrollChild:SetScript("OnEnter", function(frame)
---print(detailFrame.maxScroll)
+		detailFrame.textScroll:SetScript("OnEnter", function(frame)
 			detailFrame.textScroll:SetVerticalScroll(detailFrame.maxScroll)
 		end)
 
-		detailFrame.scrollChild:SetScript("OnLeave", function(frame)
+		detailFrame.textScroll:SetScript("OnLeave", function(frame)
 			detailFrame.textScroll:SetVerticalScroll(0)
 		end)
 
@@ -366,42 +394,66 @@ do
 			detailNameLabel:SetText(skillName)
 
 			if GetTradeSkillTools(index) then
-				toolsLabel:SetFormattedText("%s %s",REQUIRES_LABEL,BuildColoredListString(GetTradeSkillTools(index)))
+				toolsLabel:SetFormattedText("%s %s\n",REQUIRES_LABEL,BuildColoredListString(GetTradeSkillTools(index)))
 				toolsLabel:Show()
-				toolsLabel:SetHeight(15)
 			else
 				toolsLabel:Hide()
-				toolsLabel:SetHeight(1)
+				toolsLabel:SetText("")
 			end
 
 			if GetTradeSkillCooldown(index) then
-				cooldownLabel:SetFormattedText("%s %s",COOLDOWN_REMAINING,SecondsToTime(GetTradeSkillCooldown(index)))
+				cooldownLabel:SetFormattedText("%s %s\n",COOLDOWN_REMAINING,SecondsToTime(GetTradeSkillCooldown(index)))
 				cooldownLabel:Show()
-				cooldownLabel:SetHeight(15)
 			else
 				cooldownLabel:Hide()
-				cooldownLabel:SetHeight(1)
+				cooldownLabel:SetText("")
 			end
 
-			if GetTradeSkillDescription(index) then
-				descriptionTextSizeOnly:SetText(GetTradeSkillDescription(index))
-				local height = descriptionTextSizeOnly:GetHeight()
+--			if GetTradeSkillDescription(index) then
+				local link = GetTradeSkillItemLink(index)
+--print(link)
+				if strfind(link,"item:") then
+
+					tooltipScanner:SetHyperlink(link)
+
+					local tiplines = tooltipScanner:NumLines()
+--print(tiplines)
+
+					local lineText,lineTextRight = "",""
+
+					for i=2, tiplines do
+						local fs = getglobal("GWParsingTooltipTextLeft"..i)
+
+						local r,g,b,a = fs:GetTextColor()
+
+						lineText = string.format("%s|c%2x%2x%2x%2x%s|r\n",lineText,a*255,r*255,g*255,b*255,fs:GetText())
 
 
-				descriptionLabel:SetPoint("TOPLEFT", cooldownLabel, "BOTTOMLEFT", 0,0)
-				descriptionLabel:SetText(GetTradeSkillDescription(index))
-				descriptionLabel:Show()
+						local fs = getglobal("GWParsingTooltipTextRight"..i)
 
-				descriptionLabel:SetHeight(height)
+						local r,g,b,a = fs:GetTextColor()
 
-				local maxHeight = cooldownLabel:GetBottom() - detailFrame.textScroll:GetBottom()
+						lineTextRight = string.format("%s|c%2x%2x%2x%2x%s|r\n",lineTextRight,a*255,r*255,g*255,b*255,fs:GetText() or "")
 
-				detailFrame.maxScroll = math.max(height - maxHeight,0)
+--	print(i,lineText)
+					end
 
-			else
-				descriptionLabel:Hide()
-				detailFrame.maxScroll = 0
-			end
+					descriptionLabel:SetText(lineText)
+					descriptionLabelRight:SetText(lineTextRight)
+
+					descriptionLabel:Show()
+					descriptionLabelRight:Show()
+				else
+					descriptionLabel:SetText(GetTradeSkillDescription(index))
+					descriptionLabelRight:SetText("")
+					descriptionLabelRight:Hide()
+					descriptionLabel:Show()
+				end
+
+--			else
+--				descriptionLabel:SetText("")
+--				descriptionLabel:Hide()
+--			end
 		end
 
 

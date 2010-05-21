@@ -124,7 +124,7 @@ do
 							cellFrame.text:SetPoint("LEFT", cellFrame, "LEFT", entry.depth*16+4, 0)
 							cellFrame.text:SetPoint("RIGHT", cellFrame, "RIGHT", -4, 0)
 
-							local needsScan = GnomeWorks.data.recipeDB[entry.recipeID]==nil
+							local needsScan = GnomeWorksDB.results[entry.recipeID]==nil
 
 
 							local tex = ""
@@ -343,7 +343,10 @@ do
 		local needsCrafting
 		local needsVendor
 
-		local recipeData = GnomeWorks.data.recipeDB
+		local reagents = GnomeWorksDB.reagents
+		local results = GnomeWorksDB.results
+		local tradeIDs = GnomeWorksDB.tradeIDs
+
 		local itemSourceData = GnomeWorks.data.itemSource
 		local reagentUsageData = GnomeWorks.data.reagentUsage
 
@@ -353,12 +356,12 @@ do
 
 		local newEntry = AddRecipeToConstructionQueue(tradeID, recipeID, count, data)
 
-		if recipeData[recipeID] then
-			for r,reagentInfo in pairs(recipeData[recipeID].reagentData) do
-				local inBags = GnomeWorks:GetInventoryCount(reagentInfo.id, player, "bag")
+		if reagents[recipeID] then
+			for reagentID, numNeeded in pairs(reagents[recipeID]) do
+				local inBags = GnomeWorks:GetInventoryCount(reagentID, player, "bag")
 
 
-				local inQueue = count * reagentInfo.numNeeded
+				local inQueue = count * numNeeded
 
 --print((GetItemInfo(reagentInfo.id)), inBags, inQueue)
 
@@ -370,41 +373,34 @@ do
 
 					needsMaterials = true
 
-					local childRecipe = itemSourceData[reagentInfo.id]
+					local source = itemSourceData[reagentID]
 
-					if childRecipe then
-						local optionGroup = { command = "needs", itemID = reagentInfo.id, count = inQueue-inBags, subGroup = { entries = {}, expanded = false }}
+					if source then
+						local optionGroup = { command = "needs", itemID = reagentID, count = inQueue-inBags, subGroup = { entries = {}, expanded = false }}
 
 						table.insert(newEntry.subGroup.entries, optionGroup)
 
-						numCraftable = math.min(numCraftable, inBags / reagentInfo.numNeeded)
-						AddPurchaseToConstructionQueue(reagentInfo.id, inQueue - inBags, optionGroup.subGroup.entries)
+						numCraftable = math.min(numCraftable, inBags / numNeeded)
+						AddPurchaseToConstructionQueue(reagentID, inQueue - inBags, optionGroup.subGroup.entries)
 
-						if type(childRecipe) == "table" then
-							for childRecipe in pairs(childRecipe) do
-								local childData = GnomeWorks.data.recipeDB[childRecipe]
-								local numMade = (childData and childData.numMade) or 1
 
-								local newEntry, numQueued = AddToConstructionQueue(player, childData and childData.tradeID, childRecipe, math.ceil((inQueue - inBags) / numMade), optionGroup.subGroup.entries)
+						for sourceRecipeID,numMade in pairs(source) do
+--							local childData = GnomeWorks.data.recipeDB[childRecipe]
+							local numMade = numMade
 
-								numCraftable = math.min(numCraftable, (inBags + numQueued * numMade) / reagentInfo.numNeeded)
-							end
-						else
-							local childData = GnomeWorks.data.recipeDB[childRecipe]
-							local numMade = (childData and childData.numMade) or 1
+							local newEntry, numQueued = AddToConstructionQueue(player, tradeIDs[sourceRecipeID], sourceRecipeID, math.ceil((inQueue - inBags) / numMade), optionGroup.subGroup.entries)
 
-							local _, numQueued = AddToConstructionQueue(player, childData and childData.tradeID, childRecipe, math.ceil((inQueue - inBags) / numMade), optionGroup.subGroup.entries)
-
-							numCraftable = math.min(numCraftable, (inBags + numQueued * numMade) / reagentInfo.numNeeded)
+							numCraftable = math.min(numCraftable, (inBags + numQueued * numMade) / numNeeded)
 						end
+
 						needsCrafting = true
 					else
-						if GnomeWorks:VendorSellsItem(reagentInfo.id) then
+						if GnomeWorks:VendorSellsItem(reagentID) then
 							needsVendor = true
 						end
 
-						numCraftable = math.min(numCraftable, inBags / reagentInfo.numNeeded)
-						AddPurchaseToConstructionQueue(reagentInfo.id, inQueue - inBags, newEntry.subGroup.entries)
+						numCraftable = math.min(numCraftable, inBags / numNeeded)
+						AddPurchaseToConstructionQueue(reagentID, inQueue - inBags, newEntry.subGroup.entries)
 					end
 				end
 			end

@@ -152,21 +152,40 @@ do
 	end
 
 
-	local function SortCompare(scrollFrame, a,b)
-		if a<b then
-			return true
-		else
-			return false
-		end
-	end
+
 
 -- sorts and then counts the entries that aren't filtered out
 	local function SortData(scrollFrame, data)
+		local function SortCompare(a,b)
+			while a.subGroup and #a.subGroup.entries>1 do
+				a = a.subGroup.entries[1]
+			end
+
+			while b.subGroup and #b.subGroup.entries>1 do
+				b = b.subGroup.entries[1]
+			end
+
+
+			local result = scrollFrame.SortCompare(a,b)
+
+			if result == 0 then
+				result = a.skillIndex - b.skillIndex
+			end
+
+			if scrollFrame.sortInvert then
+				result = -result
+			end
+
+			if result > 0 then return true end
+			return false
+		end
+
 		if data and data.entries then
 			local count = 0
 
 			for i=1,#data.entries do
 				local entry = data.entries[i]
+				entry.index = i
 
 				if entry.subGroup then
 					local subCount = SortData(scrollFrame, entry.subGroup)
@@ -180,7 +199,9 @@ do
 				end
 			end
 
-			table.sort(data, function(a,b) scrollFrame:SortCompare(a,b) end)
+			if scrollFrame.SortCompare then
+				table.sort(data.entries, SortCompare)
+			end
 
 			data.numVisible = count
 
@@ -195,7 +216,8 @@ do
 		local num = 0
 
 		if data and data.entries and map then
-			for i=1,#data.entries do
+			local numEntries = data.numEntries or #data.entries
+			for i=1,numEntries do
 				local entry = data.entries[i]
 				entry.depth = depth
 
@@ -239,6 +261,7 @@ do
 		if data and data.entries then
 			for i=1,#data.entries do
 				local entry = data.entries[i]
+
 				entry.depth = depth
 
 				if entry.subGroup then
@@ -290,15 +313,18 @@ do
 	end
 
 	local function OnClick(frame, ...)
+		local rowFrame = frame:GetParent()
+
+		-- if frame has click function, the call it.  if it returns true, then don't call parent onclick (if it exists)
 		if frame.OnClick then
 			if frame:OnClick(...) then
 				return
 			end
 		end
 
-		local rowFrame = frame:GetParent()
-
-		rowFrame:OnClick(...)
+		if rowFrame.OnClick then
+			rowFrame:OnClick(...)
+		end
 	end
 
 
@@ -366,7 +392,7 @@ do
 		sf.UpdateData = UpdateData
 		sf.FilterData = FilterData
 		sf.SortData = SortData
-		sf.SortCompare = SortCompare
+		sf.SortCompare = nil
 		sf.IsEntryFiltered = IsEntryFiltered
 
 		sf.Refresh = Refresh
@@ -404,19 +430,6 @@ do
 
 		return sf
 	end
-
-	--[[ usage:
-			local sf = lib:Create(parentFrame, rowHeight)
-
-			sf.InitColumns = init function
-			sf.DrawColumns = draw function
-
-			sf:Enable()
-
-	]]
-
--- function ScrollingTable:CreateST(cols, numRows, rowHeight, highlight, parent)
-
 end
 
 
@@ -464,6 +477,9 @@ do
 
 		local sf = libScrollKit:Create(parentFrame, 15)
 
+		sf.columnHighlight = sf:CreateTexture(nil,"BACKGROUND")
+		sf.columnHighlight:SetTexture("Interface\\Buttons\\BLUEGRAD64.blp")
+
 		sf.columnHeaders = columnHeaders
 		sf.columnWidth = {}
 		sf.headerWidth = 0
@@ -485,12 +501,31 @@ do
 			self.Window:SetBetterBackdrop(c,backDrop)
 
 
-
 			sf.columnFrames[i] = c
+
+			sf.columnFrames[columnHeaders[i].name] = c
 
 
 			sf.headerWidth = sf.headerWidth + sf.columnHeaders[i].width
 		end
+
+
+
+		sf.HighlightColumn = function(scrollFrame,index,invert)
+			local t = scrollFrame.columnHighlight
+
+			t:SetAllPoints(scrollFrame.columnFrames[index])
+			t:Show()
+			t:SetVertexColor(1,1,1,.075)
+
+			if invert then
+				t:SetTexCoord(0,1,1,0)
+			else
+				t:SetTexCoord(0,1,0,1)
+			end
+		end
+
+
 
 
 		sf.InitColumns = function(scrollFrame, rowFrame)
@@ -553,7 +588,7 @@ do
 --						c.button:Hide()
 					end
 
-
+					c.header = header[i]
 
 					scrollFrame:SetHandlerScripts(c)
 				end

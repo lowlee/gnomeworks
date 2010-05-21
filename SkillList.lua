@@ -62,7 +62,7 @@ do
 	tradeIDByName[GetSpellInfo(2575)] = 2656	-- special case for mining/smelting
 
 
-	GnomeWorks.data = { skillIndexLookup = {}, skillDB = {}, recipeDB = {}, linkDB = {} }
+	GnomeWorks.data = { skillIndexLookup = {}, skillDB = {}, linkDB = {} }
 	local data = GnomeWorks.data
 
 	local skillIndexLookup = data.skillIndexLookup
@@ -82,24 +82,18 @@ do
 	end
 
 
-	local function AddToDataTable(dataTable, itemID, recipeID)
+	local function AddToDataTable(dataTable, itemID, recipeID, num)
 		if recipeID and itemID then
 			if dataTable[itemID] then
-				if type(dataTable[itemID]) == "number" then
-					if dataTable[itemID] ~= recipeID then
-						dataTable[itemID] = { [dataTable[itemID]] = true, [recipeID] = true }
-					end
-				else
-					dataTable[itemID][recipeID] = true
-				end
+				dataTable[itemID][recipeID] = num
 			else
-				dataTable[itemID] = recipeID
+				dataTable[itemID] = { [recipeID] = num }
 			end
 		end
 	end
 
 
-	local function AddToItemCache(itemID, recipeID)
+	local function AddToItemCache(itemID, recipeID, numMade)
 --[[
 			local deTable = LSW.getDisenchantResults(itemID)
 
@@ -164,12 +158,12 @@ do
 			itemCache[itemID].BOP = itemBOPCheck(itemID)
 ]]
 
-		AddToDataTable(GnomeWorksDB.itemSource, itemID, recipeID)
+		AddToDataTable(GnomeWorks.data.itemSource, itemID, recipeID, numMade)
 	end
 
 
 	local function AddToReagentCache(reagentID, recipeID)
-		AddToDataTable(GnomeWorksDB.reagentUsage, reagentID, recipeID)
+		AddToDataTable(GnomeWorks.data.reagentUsage, reagentID, recipeID, numMade)
 	end
 
 
@@ -275,7 +269,7 @@ do
 
 				self.selectedSkill = index
 
-				self:ShowSkillList()
+--				self:ShowSkillList()
 
 				self:ScrollToIndex(index)
 			else
@@ -405,11 +399,19 @@ do
 
 
 		if not data.skillDB[key] then
-			data.skillDB[key] = {}
+			data.skillDB[key] = { difficulty = {}, recipeID = {}, cooldown = {}}
 		end
 
 
-		local skillData = data.skillDB[key]
+		local recipe = data.skillDB[key].recipeID
+		local difficulty = data.skillDB[key].difficulty
+		local cooldown = data.skillDB[key].cooldown
+
+
+		local results = GnomeWorksDB.results
+		local tradeIDs = GnomeWorksDB.tradeIDs
+		local reagents = GnomeWorksDB.reagents
+
 
 		local lastHeader = nil
 		local gotNil = false
@@ -452,8 +454,8 @@ do
 							groupName = skillName
 						end
 
-						skillData[i] = "header "..skillName
-						skillData[i] = nil
+--						skillData[i] = "header "..skillName
+--						skillData[i] = nil
 
 						currentGroup = self:RecipeGroupNew(player, tradeID, "Blizzard", groupName)
 						currentGroup.autoGroup = true
@@ -475,20 +477,24 @@ do
 						end
 
 
-						-- break recipes into lists by profession for ease of sorting
-						skillData[i] = {}
+						local cd = GetTradeSkillCooldown(i)
 
+						recipe[i] = recipeID
+						difficulty[i] = skillType
+
+--						skillData[i] = { id = recipeID, difficulty = skilltype, color = skillTypeStyle[skillType] }
+--[[
 		--					skillData[i].name = skillName
 						skillData[i].id = recipeID
 						skillData[i].difficulty = skillType
 						skillData[i].color = skillTypeStyle[skillType]
 		--				skillData[i].category = lastHeader
-
-
-						local cd = GetTradeSkillCooldown(i)
+]]
 
 						if cd then
-							skillData[i].cooldown = cd + time()		-- this is when your cooldown will be up
+							cooldown[i] = cd + time()
+
+--							skillData[i].cooldown = cd + time()		-- this is when your cooldown will be up
 
 --							skillDBString = skillDBString.." cd=" .. cd + time()
 -- TODO: SaveCooldown info
@@ -497,17 +503,14 @@ do
 
 						skillIndexLookup[player][recipeID] = i
 
-						if not data.recipeDB[recipeID] or recacheRecipe[recipeID] then
-							data.recipeDB[recipeID] = {}
+						if not results[recipeID] or recacheRecipe[recipeID] then
 
-							data.recipeDB[recipeID].craftable = localPlayer
 
-							local recipe = data.recipeDB[recipeID]
+--							data.recipeDB[recipeID].craftable = localPlayer
 
-							recipe.tradeID = tradeID
---							recipe.spellID = recipeID
+--							local recipe = data.recipeDB[recipeID]
 
---							recipe.name = skillName
+--							recipe.tradeID = tradeID
 
 							local itemLink = GetTradeSkillItemLink(i)
 
@@ -517,22 +520,20 @@ do
 							end
 
 
+							local itemID, numMade = -recipeID, 1				-- itemID = RecipeID, numMade = 1 for enchants/item enhancements
+
 							if GetItemInfo(itemLink) then
-								local itemID = GetIDFromLink(itemLink)
+								itemID = GetIDFromLink(itemLink)
 
 								local minMade,maxMade = GetTradeSkillNumMade(i)
 
-								local numMade = (minMade + maxMade) / 2
+								numMade = (minMade + maxMade) / 2
 
-
-								recipe.itemID = itemID
-								recipe.numMade = (minMade + maxMade)/2
-
-								AddToItemCache(itemID,recipeID)					-- add a cross reference for the source of particular items
-							else
-								recipe.numMade = 1
-								recipe.itemID = 0												-- indicates an enchant
+								AddToItemCache(itemID, recipeID, numMade)					-- add a cross reference for the source of particular items
 							end
+
+
+
 
 							local reagentData = {}
 
@@ -550,16 +551,19 @@ do
 									break
 								end
 
-								reagentData[j] = {}
+								reagentData[reagentID] = numNeeded
 
-								reagentData[j].id = reagentID
-								reagentData[j].numNeeded = numNeeded
-
-								AddToReagentCache(reagentID, recipeID)
+								AddToReagentCache(reagentID, recipeID, numNeeded)
 --								self:ItemDataAddUsedInRecipe(reagentID, recipeID)				-- add a cross reference for where a particular item is used
 							end
 
-							recipe.reagentData = reagentData
+							reagents[recipeID] = reagentData
+							tradeID[recipeID] = tradeID
+							results[recipeID] = { [itemID] = numMade }
+
+--							GnomeWorksDB.recipeDB[recipeID] = { tradeID = tradeID, itemID = itemID, numMade = numMade, reagentData = reagentData }
+
+--							recipe.reagentData = reagentData
 
 							if gotNil then
 								recacheRecipe[recipeID] = true
@@ -638,11 +642,6 @@ do
 		key = key or self.player..":"..self.tradeID
 
 		return self.data.skillDB[key][skillIndex]
-	end
-
-
-	function GnomeWorks:GetRecipeData(recipeID)
-		return self.data.recipeDB[recipeID]
 	end
 
 
