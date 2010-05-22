@@ -82,13 +82,13 @@ do
 
 
 
-	local filterMenuFrame = CreateFrame("Frame", "GnomeWorksFilterMenuFrame", getglobal("UIParent"), "UIDropDownMenuTemplate")
+	local filterMenuFrame = CreateFrame("Frame", "GnomeWorksFilterMenuFrame", UIParent, "UIDropDownMenuTemplate")
 
 
 	local activeFilterList = {}
 
 
-	local function CreateFilterMenu(filterParameters, menu, column)
+	function GnomeWorks:CreateFilterMenu(filterParameters, menu, column)
 		local function filterSet(button, setting)
 			filterParameters[setting].enabled = not filterParameters[setting].enabled
 
@@ -152,7 +152,7 @@ do
 		},
 	}
 
-	CreateFilterMenu(craftFilterParameters, craftFilterMenu, 3)
+	GnomeWorks:CreateFilterMenu(craftFilterParameters, craftFilterMenu, 3)
 
 
 
@@ -173,7 +173,7 @@ do
 		},
 	}
 
-	CreateFilterMenu(levelFilterParameters, levelFilterMenu, 1)
+	GnomeWorks:CreateFilterMenu(levelFilterParameters, levelFilterMenu, 1)
 
 
 
@@ -195,7 +195,7 @@ do
 		},
 	}
 
-	CreateFilterMenu(recipeFilterParameters, recipeFilterMenu, 2)
+	GnomeWorks:CreateFilterMenu(recipeFilterParameters, recipeFilterMenu, 2)
 
 --[[
 	local recipeMenu = {
@@ -245,7 +245,7 @@ do
 									local x, y = GetCursorPosition()
 									local uiScale = UIParent:GetEffectiveScale()
 
-									EasyMenu(levelFilterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
+									EasyMenu(levelFilterMenu, filterMenuFrame, UIParent, x/uiScale,y/uiScale, "MENU", 5)
 								else
 									sf.sortInvert = (sf.SortCompare == cellFrame.header.sortCompare) and not sf.sortInvert
 
@@ -625,9 +625,10 @@ do
 		skillFrame:SetPoint("TOP", frame, 0, -85)
 		skillFrame:SetPoint("RIGHT", frame, -20,0)
 
-		GnomeWorks.skillFrame = skillFrame
-
 		sf = GnomeWorks:CreateScrollingTable(skillFrame, ScrollPaneBackdrop, columnHeaders, ResizeSkillFrame)
+
+		skillFrame.scrollFrame = sf
+
 
 		sf.IsEntryFiltered = function(self, entry)
 			for k,filter in pairs(activeFilterList) do
@@ -651,7 +652,7 @@ do
 
 
 
-		sf.UpdateRowData = function(scrollFrame,entry)
+		local function UpdateRowData(scrollFrame,entry)
 			if not entry.subGroup then
 				local bag = GnomeWorks:InventoryRecipeIterations(entry.recipeID, GnomeWorks.player, "craftedBag queue")
 				local vendor = GnomeWorks:InventoryRecipeIterations(entry.recipeID, GnomeWorks.player, "vendor craftedBag queue")
@@ -688,6 +689,10 @@ do
 		end
 
 
+		sf:RegisterRowUpdate(UpdateRowData)
+
+
+		return skillFrame
 
 --[[
 				if currentTradeskill then
@@ -974,7 +979,7 @@ do
 		self.detailFrame = self:CreateDetailFrame(frame)
 		self.reagentFrame = self:CreateReagentFrame(frame)
 
-		BuildScrollingTable()
+		self.skillFrame = BuildScrollingTable()
 
 		self.controlFrame = self:CreateControlFrame(frame)
 

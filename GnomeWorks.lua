@@ -4,7 +4,7 @@
 
 
 
-GnomeWorks = {}
+GnomeWorks = { plugins = {} }
 GnomeWorksDB = {}
 
 

@@ -265,20 +265,28 @@ do
 				entry.depth = depth
 
 				if entry.subGroup then
-					scrollFrame:UpdateRowData(entry)
+					for name,reg in pairs(scrollFrame.rowUpdateRegistry) do
+						if not reg.plugin or reg.plugin.enabled then
+							reg.func(scrollFrame, entry)
+						end
+					end
 
 					if entry.subGroup then
 						UpdateData(scrollFrame, entry.subGroup, depth+1)
 					end
 				else
-					scrollFrame:UpdateRowData(entry)
+					for name,reg in pairs(scrollFrame.rowUpdateRegistry) do
+						if not reg.plugin or reg.plugin.enabled then
+							reg.func(scrollFrame, entry)
+						end
+					end
 				end
 			end
 		end
 	end
 
 	local function Refresh(scrollFrame)
-		if scrollFrame.UpdateRowData then
+		if #scrollFrame.rowUpdateRegistry>0 then
 			scrollFrame:UpdateData(scrollFrame.data, 0)
 		end
 
@@ -341,6 +349,11 @@ do
 	end
 
 
+	local function RegisterRowUpdate(scrollFrame, func, plugin)
+		table.insert(scrollFrame.rowUpdateRegistry, { func = func, plugin = plugin })
+	end
+
+
 	function lib:Create(frame, rowHeight, recycle)
 		local sf
 
@@ -379,6 +392,12 @@ do
 		sf.numData = 0
 
 		sf.scrollOffset = 0
+
+
+		sf.rowUpdateRegistry = {}
+
+
+		sf.RegisterRowUpdate = RegisterRowUpdate
 
 
 		sf.Draw = Draw
@@ -468,7 +487,6 @@ do
 	end
 
 
-
 	function GnomeWorks:CreateScrollingTable(parentFrame, backDrop, columnHeaders, onResize)
 --		local rows = floor((parentFrame:GetHeight() - 15) / 15)
 --		local LibScrollingTable = LibStub("ScrollingTable")
@@ -526,71 +544,97 @@ do
 		end
 
 
+		sf.AddColumn = function(scrollFrame, header, plugin)
+			local newIndex = #scrollFrame.columnHeaders+1
+
+			local c = CreateFrame("Frame",nil,sf)
+
+			c:SetPoint("TOP")
+			c:SetPoint("BOTTOM")
+			c:SetPoint("LEFT", sf, "LEFT", sf.headerWidth, 0)
+			c:SetPoint("RIGHT", sf, "LEFT", sf.headerWidth + header.width,0)
+
+			c:SetFrameLevel(c:GetFrameLevel()-1)
+
+			self.Window:SetBetterBackdrop(c,backDrop)
+
+			scrollFrame.columnFrames[newIndex] = c
+			scrollFrame.columnFrames[header.name] = c
+
+			scrollFrame.headerWidth = scrollFrame.headerWidth + header.width
+
+
+			scrollFrame.columnWidth[newIndex] = header.width
+			scrollFrame.columnHeaders[newIndex] = header
+		end
+
 
 
 		sf.InitColumns = function(scrollFrame, rowFrame)
 			local width = rowFrame:GetWidth()
 			local cols = rowFrame.cols
 			local x = 0
+			local headers = scrollFrame.columnHeaders
 
-			if not cols then
+			if not cols or #cols ~= #headers then
 				local rowHeight = scrollFrame.rowHeight
-				local header = scrollFrame.columnHeaders
 
 				rowFrame.cols = {}
 
-				for i=1,#header do
-					local c = CreateFrame("Button", nil, rowFrame)
+				for i=1,#headers do
+					if not rowFrame.cols[i] then
+						local c = CreateFrame("Button", nil, rowFrame)
 
-					c:EnableMouse(true)
-					c:RegisterForClicks("AnyUp")
+						c:EnableMouse(true)
+						c:RegisterForClicks("AnyUp")
 
-					c:SetHeight(rowHeight)
-					c:SetPoint("LEFT",scrollFrame.columnFrames[i])
-					c:SetPoint("RIGHT",scrollFrame.columnFrames[i])
-					c:SetPoint("TOP",rowFrame)
-
-
-					if rowFrame.rowIndex == 0 then
-						c.bg = c:CreateTexture(nil, "OVERLAY")
-						c.bg:SetTexture(1,1,1,1)
-						c.bg:SetVertexColor(1,1,1,1)
---						c.bg:Show()
-						c.bg:SetPoint("TOPLEFT",0,0)
-						c.bg:SetPoint("BOTTOMRIGHT",0,0)
+						c:SetHeight(rowHeight)
+						c:SetPoint("LEFT",scrollFrame.columnFrames[i])
+						c:SetPoint("RIGHT",scrollFrame.columnFrames[i])
+						c:SetPoint("TOP",rowFrame)
 
 
-						c.text = c:CreateFontString(nil, "OVERLAY", font)
-					else
-						c.text = c:CreateFontString(nil, "OVERLAY", header[i].font or font)
+						if rowFrame.rowIndex == 0 then
+							c.bg = c:CreateTexture(nil, "OVERLAY")
+							c.bg:SetTexture(1,1,1,1)
+							c.bg:SetVertexColor(1,1,1,1)
+	--						c.bg:Show()
+							c.bg:SetPoint("TOPLEFT",0,0)
+							c.bg:SetPoint("BOTTOMRIGHT",0,0)
+
+
+							c.text = c:CreateFontString(nil, "OVERLAY", font)
+						else
+							c.text = c:CreateFontString(nil, "OVERLAY", headers[i].font or font)
+						end
+
+						c.text:SetPoint("TOP",c)
+						c.text:SetPoint("BOTTOM",c)
+						c.text:SetPoint("LEFT", c)
+						c.text:SetPoint("RIGHT", c, "RIGHT", -2,0)
+						c.text:SetJustifyH((rowFrame.rowIndex==0 and headers[i].headerAlign) or headers[i].align or "LEFT")
+
+						c.OnClick = headers[i].OnClick
+						c.OnEnter = headers[i].OnEnter
+						c.OnLeave = headers[i].OnLeave
+
+						rowFrame.cols[i] = c
+
+						if headers[i].button then
+							c.button = CreateFrame("button", nil, c)
+							c.button:SetWidth(headers[i].button.width or 16)
+							c.button:SetHeight(headers[i].button.height or 16)
+							c.button:SetNormalTexture(headers[i].button.normalTexture)
+							c.button:SetHighlightTexture(headers[i].button.highlightTexture)
+
+							c.button:SetPoint("LEFT")
+	--						c.button:Hide()
+						end
+
+						c.header = headers[i]
+
+						scrollFrame:SetHandlerScripts(c)
 					end
-
-					c.text:SetPoint("TOP",c)
-					c.text:SetPoint("BOTTOM",c)
-					c.text:SetPoint("LEFT", c)
-					c.text:SetPoint("RIGHT", c)
-					c.text:SetJustifyH(header[i].align or "LEFT")
-
-					c.OnClick = header[i].OnClick
-					c.OnEnter = header[i].OnEnter
-					c.OnLeave = header[i].OnLeave
-
-					rowFrame.cols[i] = c
-
-					if header[i].button then
-						c.button = CreateFrame("button", nil, c)
-						c.button:SetWidth(header[i].button.width or 16)
-						c.button:SetHeight(header[i].button.height or 16)
-						c.button:SetNormalTexture(header[i].button.normalTexture)
-						c.button:SetHighlightTexture(header[i].button.highlightTexture)
-
-						c.button:SetPoint("LEFT")
---						c.button:Hide()
-					end
-
-					c.header = header[i]
-
-					scrollFrame:SetHandlerScripts(c)
 				end
 			end
 		end
