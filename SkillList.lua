@@ -558,7 +558,7 @@ do
 							end
 
 							reagents[recipeID] = reagentData
-							tradeID[recipeID] = tradeID
+							tradeIDs[recipeID] = tradeID
 							results[recipeID] = { [itemID] = numMade }
 
 --							GnomeWorksDB.recipeDB[recipeID] = { tradeID = tradeID, itemID = itemID, numMade = numMade, reagentData = reagentData }

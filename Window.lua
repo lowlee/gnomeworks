@@ -29,6 +29,9 @@ do
 	local ALLQUADS = {"TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "LEFT", "RIGHT", "TOP", "BOTTOM"}
 	local CORNERS = {"TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"}
 
+	local mouseHintTexture
+
+
 	local function ResizeBetterBackdrop(frame)
 		if not frame then
 			return
@@ -204,7 +207,6 @@ do
 	end
 
 
-
 	function Window:CreateResizableWindow(frameName,windowTitle, width, height, resizeFunction, config)
 		local frame = CreateFrame("Frame",frameName,UIParent)
 		frame:Hide()
@@ -258,6 +260,31 @@ do
 		end
 
 
+--[[
+		mouseHintTexture = frame:CreateTexture(nil,"OVERLAY")
+		mouseHintTexture:SetWidth(32)
+		mouseHintTexture:SetHeight(32)
+		mouseHintTexture:Show()
+		mouseHintTexture:SetTexture("Interface\\AddOns\\GnomeWorks\\Art\\arrow.tga")
+
+--		mouseHintTexture:SetPoint("CENTER",UIParent,"BOTTOMLEFT",100,100)
+
+		frame:SetScript("OnUpdate", function()
+
+			if mouseHintTexture:IsShown() then
+				local x, y = GetCursorPosition()
+				local uiScale = UIParent:GetEffectiveScale()
+
+				mouseHintTexture:SetPoint("CENTER",UIParent,"BOTTOMLEFT",x/uiScale,y/uiScale)
+
+--				mouseHintTexture:
+			end
+		end)
+
+		frame:SetScript("OnEnter", function() print("OnEnter") mouseHintTexture:Show() end)
+		frame:SetScript("OnLeave", function() print("OnLeave") mouseHintTexture:Hide() end)
+]]
+
 		frame:SetScript("OnMouseDown", function() frame:StartSizing(GetSizingPoint(frame)) end)
 		frame:SetScript("OnMouseUp", function() frame:StopMovingOrSizing() frame:SavePosition() end)
 		frame:SetScript("OnHide", function() frame:StopMovingOrSizing() frame:SavePosition() end)
@@ -291,6 +318,7 @@ do
 		mover:SetScript("OnHide", function() frame:StopMovingOrSizing() frame:SavePosition() end)
 
 
+
 		mover:SetHitRectInsets(10,10,10,10)
 
 		frame.mover = mover
@@ -305,14 +333,14 @@ do
 			title:SetHeight(titleSize)
 
 			title.textureLeft = title:CreateTexture(nil, "BORDER")
-			title.textureLeft:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTexture.tga")
+			title.textureLeft:SetTexture("Interface\\AddOns\\GnomeWorks\\Art\\headerTexture.tga")
 			title.textureLeft:SetPoint("LEFT",0,0)
 			title.textureLeft:SetWidth(titleSize*2)
 			title.textureLeft:SetHeight(titleSize)
 			title.textureLeft:SetTexCoord(0, 1, 0, .5)
 
 			title.textureRight = title:CreateTexture(nil, "BORDER")
-			title.textureRight:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTexture.tga")
+			title.textureRight:SetTexture("Interface\\AddOns\\GnomeWorks\\Art\\headerTexture.tga")
 			title.textureRight:SetPoint("RIGHT",0,0)
 			title.textureRight:SetWidth(titleSize*2)
 			title.textureRight:SetHeight(titleSize)
@@ -320,7 +348,7 @@ do
 
 
 			title.textureCenter = title:CreateTexture(nil, "BORDER")
-			title.textureCenter:SetTexture("Interface\\AddOns\\GnomishYellowPages\\Art\\headerTextureCenter.tga", true)
+			title.textureCenter:SetTexture("Interface\\AddOns\\GnomeWorks\\Art\\headerTextureCenter.tga", true)
 			title.textureCenter:SetHeight(titleSize)
 	--		title.textureCenter:SetWidth(30)
 			title.textureCenter:SetPoint("LEFT",titleSize*2,0)
