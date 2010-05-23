@@ -3,6 +3,70 @@
 
 local libScrollKit = {}
 
+
+
+-- shell sort function
+do
+  local incs = { 1391376,
+                 463792, 198768, 86961, 33936,
+                 13776, 4592, 1968, 861, 336,
+                 112, 48, 21, 7, 3, 1 }
+
+  local function ssup(t, n)
+    for _, h in ipairs(incs) do
+      for i = h + 1, n do
+        local v = t[i]
+        for j = i - h, 1, -h do
+          local testval = t[j]
+          if not (v < testval) then break end
+          t[i] = testval; i = j
+        end
+        t[i] = v
+      end
+    end
+    return t
+  end
+
+  local function ssdown(t, n)
+    for _, h in ipairs(incs) do
+      for i = h + 1, n do
+        local v = t[i]
+        for j = i - h, 1, -h do
+          local testval = t[j]
+          if not (v > testval) then break end
+          t[i] = testval; i = j
+        end
+        t[i] = v
+      end
+    end
+    return t
+  end
+
+  local function ssgeneral(t, n, before)
+    for _, h in ipairs(incs) do
+      for i = h + 1, n do
+        local v = t[i]
+        for j = i - h, 1, -h do
+          local testval = t[j]
+          if not before(v, testval) then break end
+          t[i] = testval; i = j
+        end
+        t[i] = v
+      end
+    end
+    return t
+  end
+
+  function shellsort(t, before, n)
+    n = n or #t
+    if not before or before == "<" then return ssup(t, n)
+    elseif before == ">" then return ssdown(t, n)
+    else return ssgeneral(t, n, before)
+    end
+  end
+end
+
+
 do
 	local serial = 0
 
@@ -169,7 +233,7 @@ do
 			local result = scrollFrame.SortCompare(a,b)
 
 			if result == 0 then
-				result = a.skillIndex - b.skillIndex
+				result = a.index - b.index
 			end
 
 			if scrollFrame.sortInvert then
@@ -185,7 +249,7 @@ do
 
 			for i=1,#data.entries do
 				local entry = data.entries[i]
-				entry.index = i
+
 
 				if entry.subGroup then
 					local subCount = SortData(scrollFrame, entry.subGroup)
@@ -200,7 +264,12 @@ do
 			end
 
 			if scrollFrame.SortCompare then
-				table.sort(data.entries, SortCompare)
+				if data.numEntries then
+					shellsort(data.entries, SortCompare, data.numEntries)
+				else
+					table.sort(data.entries, SortCompare)
+				end
+
 			end
 
 			data.numVisible = count
@@ -566,6 +635,8 @@ do
 
 			scrollFrame.columnWidth[newIndex] = header.width
 			scrollFrame.columnHeaders[newIndex] = header
+
+			onResize(sf,sf:GetWidth(), sf:GetHeight())
 		end
 
 

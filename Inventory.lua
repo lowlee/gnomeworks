@@ -14,13 +14,16 @@ do
 
 	-- queries periodic table for vendor info for a particual itemID
 	function GnomeWorks:VendorSellsItem(itemID)
-		if self.libPT then
-			if GnomeWorksDB.vendorItems[itemID] then
-				return true
-			end
 
-			if self.libPT:ItemInSet(itemID,"Tradeskill.Mat.BySource.Vendor") then
-				return true
+		if itemID>0 then
+			if self.libPT then
+				if GnomeWorksDB.vendorItems[itemID] then
+					return true
+				end
+
+				if self.libPT:ItemInSet(itemID,"Tradeskill.Mat.BySource.Vendor") then
+					return true
+				end
 			end
 		end
 	end

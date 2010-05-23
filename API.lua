@@ -55,6 +55,11 @@ do
 		return self.skillFrame.scrollFrame
 	end
 
+
+	function GnomeWorks:GetReagentListScrollFrame()
+		return self.reagentFrame.scrollFrame
+	end
+
 end
 
 

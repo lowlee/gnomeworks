@@ -4,8 +4,8 @@
 
 
 
-local function DebugSpam(s)
---	print(s)
+local function DebugSpam(...)
+	print(...)
 end
 
 
@@ -196,6 +196,7 @@ do
 
 
 	function GnomeWorks:ParseSkillList()
+DebugSpam("parsing skill list")
 		local playerName = UnitName("player")
 
 		self.data.playerData[playerName] = { links = {}, build = clientBuild, guild = GetGuildInfo("player") }
@@ -206,6 +207,7 @@ do
 			local link, tradeLink = GetSpellLink((GetSpellInfo(id)))
 
 			if link then
+DebugSpam("found ", link)
 				if id == 2656 then
 					tradeLink = "|cffffd000|Htrade:2656:1:1:0:/|h["..GetSpellInfo(id) .."]|h|r"			-- fake link for data collection purposes
 				end
@@ -237,6 +239,7 @@ do
 --				print(playerData.links[id])
 			end
 		end
+DebugSpam("done parsing skill list")
 	end
 
 
@@ -616,6 +619,12 @@ do
 
 
 	function GnomeWorks:GetTradeSkillRank(player, tradeID)
+		if not IsTradeSkillLinked() then
+			local skill, rank, maxRank = GetTradeSkillLine()
+
+			return rank, maxRank
+		end
+
 		tradeID = tradeID or self.tradeID
 		player = player or self.player
 
@@ -630,7 +639,7 @@ do
 		local link = (self.data.playerData[player] and self.data.playerData[player].links[tradeID])
 
 		if not link then
-			link = linkDB[player][tradeID]
+			link = linkDB[player] and linkDB[player][tradeID]
 		end
 
 		if link then

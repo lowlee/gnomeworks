@@ -32,112 +32,127 @@ do
 
 	tooltipScanner:SetOwner(WorldFrame, "ANCHOR_NONE")
 
+
+	local function columnControl(cellFrame,button,source)
+		local filterMenuFrame = getglobal("GnomeWorksFilterMenuFrame")
+		local scrollFrame = cellFrame:GetParent():GetParent()
+
+		if button == "RightButton" then
+			if cellFrame.header.filterMenu then
+				local x, y = GetCursorPosition()
+				local uiScale = UIParent:GetEffectiveScale()
+
+				EasyMenu(cellFrame.header.filterMenu, filterMenuFrame, UIParent, x/uiScale,y/uiScale, "MENU", 5)
+			end
+		else
+			scrollFrame.sortInvert = (scrollFrame.SortCompare == cellFrame.header.sortCompare) and not scrollFrame.sortInvert
+
+			scrollFrame:HighlightColumn(cellFrame.header.name, scrollFrame.sortInvert)
+			scrollFrame.SortCompare = cellFrame.header.sortCompare
+			scrollFrame:Refresh()
+		end
+	end
+
+
 	local columnHeaders = {
 		{
-			["name"] = "#",
-			["align"] = "CENTER",
-			["width"] = 25,
-			["bgcolor"] = colorBlack,
-			["tooltipText"] = "click to sort\rright-click to filter",
-			["dataField"] = "numNeeded",
+			name= "#",
+			align = "CENTER",
+			width = 25,
+			bgcolor = colorBlack,
+			tooltipText = "click to sort\rright-click to filter",
+			dataField = "numNeeded",
+			sortCompare = function(a,b)
+				return (a.numNeeded or 0) - (b.numNeeded or 0)
+			end,
+			OnClick = function(cellFrame, button, source)
+				if cellFrame:GetParent().rowIndex==0 then
+					columnControl(cellFrame, button, source)
+				end
+			end,
 		}, -- [1]
 		{
-			["name"] = "Reagent",
-			["width"] = 100,
-			["bgcolor"] = colorDark,
-			["sortnext"]= 4,
-			["tooltipText"] = "click to sort\rright-click to filter",
-			["OnClick"] = function(rowFrame, cellFrame, data, cols, row, realrow, column, scrollingTable, ...)
---								GnomeWorks:SelectSkill(realrow)
-							end,
-			["dataField"]= "id",
-			["OnEnter"] = 	function(cellFrame)
-								local entry = cellFrame:GetParent().data
-								if entry and entry.id then
-									GameTooltip:SetOwner(reagentFrame, "ANCHOR_RIGHT")
-									GameTooltip:SetHyperlink("item:"..entry.id)
-									GameTooltip:Show()
-								end
-							end,
-			["OnLeave"] =	function()
+			name = "Reagent",
+			sortCompare = function(a,b)
+				return (a.index or 0) - (b.index or 0)
+			end,
+			width = 100,
+			tooltipText = "click to sort\rright-click to filter",
+			OnClick = function(cellFrame, button, source)
+				if cellFrame:GetParent().rowIndex==0 then
+					columnControl(cellFrame, button, source)
+				end
+			end,
+			OnEnter = 	function(cellFrame)
+							local entry = cellFrame:GetParent().data
+							if entry and entry.id then
+								GameTooltip:SetOwner(reagentFrame, "ANCHOR_RIGHT")
+								GameTooltip:SetHyperlink("item:"..entry.id)
+								GameTooltip:Show()
+							end
+						end,
+			OnLeave =	function()
 								GameTooltip:Hide()
 							end,
-			["draw"] =	function (rowFrame,cellFrame,entry)
-							local itemName, itemLink = GetItemInfo(entry.id)
+			draw =	function (rowFrame,cellFrame,entry)
+						local itemName, itemLink = GetItemInfo(entry.id)
 
-							if GnomeWorks:VendorSellsItem(entry.id) then
-								cellFrame.text:SetTextColor(.25,1.0,.25)
-							elseif GnomeWorks.data.itemSource[entry.id] then
-								cellFrame.text:SetTextColor(.25,.75,1.0)
-							else
-								cellFrame.text:SetTextColor(1,1,1)
-							end
+						if GnomeWorks:VendorSellsItem(entry.id) then
+							cellFrame.text:SetTextColor(.25,1.0,.25)
+						elseif GnomeWorks.data.itemSource[entry.id] then
+							cellFrame.text:SetTextColor(.25,.75,1.0)
+						else
+							cellFrame.text:SetTextColor(1,1,1)
+						end
 
-							cellFrame.text:SetFormattedText("%s",itemName or "item:"..id)
-						end,
+						cellFrame.text:SetFormattedText("%s",itemName or "item:"..id)
+					end,
 		}, -- [2]
 		{
-			["name"] = "Inventory",
-			["width"] = 70,
-			["align"] = "CENTER",
-			["bgcolor"] = colorBlack,
-			["tooltipText"] = "click to sort\rright-click to filter",
-			["sortnext"]= 1,
-			["rightclick"] = 	function()
-									local x, y = GetCursorPosition()
-									local uiScale = UIParent:GetEffectiveScale()
-
---									EasyMenu(levelFilterMenu, GYPFilterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
-								end,
-			["dataField"] = "numAvailable",
-			["draw"] =	function (rowFrame,cellFrame,entry)
+			name = "Inventory",
+			width = 70,
+			align = "CENTER",
+			tooltipText = "click to sort\rright-click to filter",
+			sortnext= 1,
+			OnClick = function(cellFrame, button, source)
+				if cellFrame:GetParent().rowIndex==0 then
+					columnControl(cellFrame, button, source)
+				end
+			end,
+			draw =	function (rowFrame,cellFrame,entry)
 --							local _, bag, _, bank = GnomeWorks:GetInventory(GnomeWorks.player, entry.id)
 --							local _,_,_, alt = GnomeWorks:GetFactionInventory(entry.id)
-							local bag = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBag queue")
-							local bank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBank queue")
-							local alt = GnomeWorks:GetInventoryCount(entry.id, "faction", "craftedBank queue")
+						local bag = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBag queue")
+						local bank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBank queue")
+						local alt = GnomeWorks:GetInventoryCount(entry.id, "faction", "craftedBank queue")
 
-							if alt > 0 then
-								local display = ""
+						if alt > 0 then
+							local display = ""
 
-								if bag > 0 then
-									display = string.format("%s%d|r",cbag,bag)
-								elseif bank > 0 then
-									display = string.format("%s%d|r",cbank,bank)
-								elseif alt > 0 then
-									display = string.format("%s%d|r",calt,alt)
-								end
-
-								if alt > bank then
-									if bank ~= 0 then
-										display = string.format("%s/%s%s", display, calt, alt)
-									end
-								elseif bank > bag then
-									display = string.format("%s/%s%s", display, cbank, bank)
-								end
-
-
-								cellFrame.text:SetText(display)
-							else
-								cellFrame.text:SetText("|cffff00000")
+							if bag > 0 then
+								display = string.format("%s%d|r",cbag,bag)
+							elseif bank > 0 then
+								display = string.format("%s%d|r",cbank,bank)
+							elseif alt > 0 then
+								display = string.format("%s%d|r",calt,alt)
 							end
-						end,
+
+							if alt > bank then
+								if bank ~= 0 then
+									display = string.format("%s/%s%s", display, calt, alt)
+								end
+							elseif bank > bag then
+								display = string.format("%s/%s%s", display, cbank, bank)
+							end
+
+
+							cellFrame.text:SetText(display)
+						else
+							cellFrame.text:SetText("|cffff00000")
+						end
+					end,
 		}, -- [3]
 	}
-
-	local extraStuff = {
-		{
-			["name"] = "Value",
-			["width"] = 50,
-			["align"] = "CENTER",
-			["color"] = { ["r"] = 1.0, ["g"] = 1.0, ["b"] = 0.0, ["a"] = 1.0 },
-			["bgcolor"] = colorBlack,
-			["tooltipText"] = "click to sort\rright-click to filter",
-			["sortnext"] = 4,
-			["dataField"] = "value",
-		}, -- [4]
-	}
-
 
 
 
@@ -180,10 +195,13 @@ do
 
 		sf = GnomeWorks:CreateScrollingTable(reagentFrame, ScrollPaneBackdrop, columnHeaders, ResizeReagentFrame)
 
+		reagentFrame.scrollFrame = sf
+
+
 		sf.data = { entries = {  } }
 
 		for i=1,8 do
-			sf.data.entries[i] = { id = 0, numNeeded = 0 }
+			sf.data.entries[i] = { index = i, id = 0, numNeeded = 0 }
 		end
 
 		sf.numData = 0
@@ -212,6 +230,7 @@ do
 					i = i + 1
 					sf.data.entries[i].id = reagentID
 					sf.data.entries[i].numNeeded = numNeeded
+					sf.data.entries[i].index = i
 				end
 
 				sf.data.numEntries = i

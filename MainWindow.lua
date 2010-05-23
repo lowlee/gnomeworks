@@ -114,14 +114,16 @@ do
 			end
 
 			if filtersEnabled then
-				columnHeaders[column].headerBgColor = colorFilteringEnabled
+				column.headerBgColor = colorFilteringEnabled
 			else
-				columnHeaders[column].headerBgColor = nil
+				column.headerBgColor = nil
 			end
 
 			sf:Refresh()
 		end
 
+
+		menu.parameters = filterParameters
 
 		for filterName,filter in pairs(filterParameters) do
 			local menuEntry = {
@@ -130,6 +132,7 @@ do
 				tooltipText = filter.tooltip,
 				func = filterSet,
 				arg1 = filterName,
+				notCheckable = notCheckable,
 			}
 
 			if filter.checked then
@@ -154,6 +157,8 @@ do
 				v.enabled = false
 			end
 		end
+
+		CloseDropDownMenus()
 	end
 
 
@@ -174,8 +179,6 @@ do
 		},
 	}
 
-	GnomeWorks:CreateFilterMenu(craftFilterParameters, craftFilterMenu, 3)
-
 
 
 	local levelFilterMenu = {
@@ -195,42 +198,76 @@ do
 		},
 	}
 
-	GnomeWorks:CreateFilterMenu(levelFilterParameters, levelFilterMenu, 1)
 
 
-	local recipeFilterMenu = {
+
+	local recipeLevelMenu = {
 	}
 
+	local recipeFilterMenu
 
-	local recipeFilterParameters = {
+	recipeFilterMenu = {
+--		{ text = "Collapse All", func = function() GnomeWorks:CollapseAllHeaders(sf.data.entries) sf:Refresh() end,},
+--		{ text = "Expand All", func = function() GnomeWorks:ExpandAllHeaders(sf.data.entries) sf:Refresh() end,},
+		{
+			text = "Filter by Level",
+			menuList = recipeLevelMenu,
+			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
+			tCoordLeft=0, tCoordRight=1, tCoordBottom=.5, tCoordTop=.75,
+			hasArrow = true,
+			filterIndex = 3,
+			func = function()
+				local parameters = recipeLevelMenu.parameters
+				local index = recipeFilterMenu[1].filterIndex
+				parameters[index].enabled = not parameters[index].enabled
+
+				recipeFilterMenu[1].checked = parameters[index].enabled
+			end,
+			checked = false,
+		},
+	}
+
+	local function adjustFilterIcon(parameters, index)
+		recipeFilterMenu[1].checked = true
+		recipeFilterMenu[1].tCoordBottom = index/4-.25
+		recipeFilterMenu[1].tCoordTop = index/4
+		recipeFilterMenu[1].filterIndex = index
+		radioButton(parameters, index)
+	end
+
+	local recipeLevelParameters = {
 		{
 			label = "",
 			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
 			coords = {0,1,0,.25},
 			enabled = false,
 			func = function(entry)
-				local difficulty = GnomeWorks:GetSkillDifficultyLevel(entry.skillIndex)
+				local difficulty = GnomeWorks:GetSkillDifficultyLevel(entry.index)
 				if difficulty > 3 then
 					return false
 				else
 					return true
 				end
 			end,
-			OnClick = radioButton,
+			notCheckable = true,
+			checked = false,
+			OnClick = adjustFilterIcon,
 		},
 		{
 			label = "",
 			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
 			coords = {0,1,.25,.5},
 			func = function(entry)
-				local difficulty = GnomeWorks:GetSkillDifficultyLevel(entry.skillIndex)
+				local difficulty = GnomeWorks:GetSkillDifficultyLevel(entry.index)
 				if difficulty > 2 then
 					return false
 				else
 					return true
 				end
 			end,
-			OnClick = radioButton,
+			notCheckable = true,
+			checked = false,
+			OnClick = adjustFilterIcon,
 		},
 		{
 			label = "",
@@ -238,14 +275,16 @@ do
 			coords = {0,1,.5,.75},
 			enabled = false,
 			func = function(entry)
-				local difficulty = GnomeWorks:GetSkillDifficultyLevel(entry.skillIndex)
+				local difficulty = GnomeWorks:GetSkillDifficultyLevel(entry.index)
 				if difficulty > 1 then
 					return false
 				else
 					return true
 				end
 			end,
-			OnClick = radioButton,
+			notCheckable = true,
+			checked = false,
+			OnClick = adjustFilterIcon,
 		},
 --[[
 		{
@@ -266,15 +305,9 @@ do
 ]]
 	}
 
-	GnomeWorks:CreateFilterMenu(recipeFilterParameters, recipeFilterMenu, 2)
 
---[[
-	local recipeMenu = {
-		{ text = "Collapse All", func = function() GnomeWorks:CollapseAllHeaders(sf.data.entries) sf:Refresh() end,},
-		{ text = "Expand All", func = function() GnomeWorks:ExpandAllHeaders(sf.data.entries) sf:Refresh() end,},
-		{ text = "Filters", menuList = recipeFilterMenu, hasArrow = true},
-	}
-]]
+
+
 
 
 	columnHeaders = {
@@ -355,7 +388,7 @@ do
 			["bgcolor"] = colorDark,
 			["tooltipText"] = "click to sort\rright-click to filter",
 			["sortCompare"] = function(a,b)
-				return (a.skillIndex or 0) - (b.skillIndex or 0)
+				return (a.index or 0) - (b.index or 0)
 			end,
 			["OnClick"] = function(cellFrame, button, source)
 								if cellFrame:GetParent().rowIndex>0 then
@@ -365,7 +398,7 @@ do
 										entry.subGroup.expanded = not entry.subGroup.expanded
 										sf:Refresh()
 									else
-										GnomeWorks:SelectSkill(entry.skillIndex)
+										GnomeWorks:SelectSkill(entry.index)
 										sf:Draw()
 									end
 								else
@@ -436,7 +469,7 @@ do
 								cr,cg,cb = 1,.82,0
 							else
 								if not entry.skillColor then
-									entry.skillColor = GnomeWorks:GetSkillColor(entry.skillIndex)
+									entry.skillColor = GnomeWorks:GetSkillColor(entry.index)
 								end
 
 								cr,cg,cb = entry.skillColor.r, entry.skillColor.g, entry.skillColor.b
@@ -593,59 +626,10 @@ do
 		}, -- [3]
 	}
 
-	local oldTable = {
-		{
-			["font"] = "GameFontHighlightSmall",
-			["name"] = "Value",
-			["width"] = 60,
-			["align"] = "CENTER",
-			["color"] = { ["r"] = 1.0, ["g"] = 1.0, ["b"] = 0.0, ["a"] = 1.0 },
-			["bgcolor"] = colorDark,
-			["tooltipText"] = "click to sort\rright-click to filter",
-			["dataField"]= "skillIndex",
---[[
-			["onclick"] =	function(button, link)
-								local tradeString = string.match(link, "(trade:%d+:%d+:%d+:[0-9a-fA-F]+:[A-Za-z0-9+/]+)")
 
-								if IsShiftKeyDown() then
-									if (ChatFrameEditBox:IsVisible() or WIM_EditBoxInFocus ~= nil) then
-										ChatEdit_InsertLink(link)
-									else
-										DEFAULT_CHAT_FRAME:AddMessage(link)
-									end
-								elseif IsControlKeyDown() then
-									local tradeID, bitmap = string.match(tradeString, "trade:(%d+):%d+:%d+:[0-9a-fA-F]+:([A-Za-z0-9+/]+)")
-
-									tradeID = tonumber(tradeID)
-
-									GYP.TradeLink:DumpSpells(Config.spellList[tradeID], bitmap)
-								else
-									getglobal("GYPFrame"):SetFrameStrata("LOW")
-
-									OpenTradeLink(tradeString)
-								end
-							end,
-			["rightclick"] = 	function()
-									local x, y = GetCursorPosition()
-									local uiScale = UIParent:GetEffectiveScale()
-
-									EasyMenu(tradeFilterMenu, GYPFilterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
-								end
-]]
-		}, -- [4]
-		{
-			["font"] = "GameFontHighlightSmall",
-			["name"] = "Cost",
-			["width"] = 60,
-			["align"] = "CENTER",
-			["color"] = { ["r"] = 1.0, ["g"] = 1.0, ["b"] = 0.0, ["a"] = 1.0 },
-			["bgcolor"] = colorBlack,
-			["tooltipText"] = "click to sort\rright-click to filter",
-			["dataField"]= "skillIndex",
-		}, -- [5]
-	}
-
-
+	GnomeWorks:CreateFilterMenu(levelFilterParameters, levelFilterMenu, columnHeaders[1])
+	GnomeWorks:CreateFilterMenu(recipeLevelParameters, recipeLevelMenu, columnHeaders[2])
+	GnomeWorks:CreateFilterMenu(craftFilterParameters, craftFilterMenu, columnHeaders[3])
 
 
 
@@ -736,7 +720,7 @@ do
 				entry.craftAlt = alts
 
 				if not entry.itemColor then
-					local itemLink = GetTradeSkillItemLink(entry.skillIndex)
+					local itemLink = GetTradeSkillItemLink(entry.index)
 
 					local _,itemRarity,reqLevel
 					local itemColor
@@ -896,7 +880,7 @@ do
 		local rowIndex = 1
 
 		for i=1,#sf.dataMap do
-			if sf.dataMap[i].skillIndex == skillIndex then
+			if sf.dataMap[i].index == skillIndex then
 				rowIndex = i
 				break
 			end

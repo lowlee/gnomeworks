@@ -2,6 +2,8 @@
 
 
 
+local VERSION = ("$Revision$"):match("%d+")
+
 
 
 GnomeWorks = { plugins = {} }
@@ -38,7 +40,7 @@ LibStub("AceTimer-3.0"):Embed(GnomeWorks)
 			itemID : link
 ]]
 
-
+--[[
 -- disable standard frame
 do
 
@@ -54,7 +56,7 @@ do
 	function GnomeWorks:EventManager(frame, event, ...)
 	end
 end
-
+]]
 
 -- handle load sequence
 do
@@ -116,6 +118,8 @@ do
 
 
 	function GnomeWorks:OnLoad()
+		print("|cff80ff80GnomeWorks (r"..VERSION..") Initializing")
+
 		if LibStub then
 			self.libPT = LibStub:GetLibrary("LibPeriodicTable-3.1", true)
 		end
@@ -240,17 +244,18 @@ do
 		collectgarbage("collect")
 	end
 
-
 	if not IsAddOnLoaded("AddOnLoader") then
 		GnomeWorks:RegisterEvent("PLAYER_ENTERING_WORLD", function()
-			GnomeWorks:ScheduleTimer("OnLoad",1)
+--			GnomeWorks:ScheduleTimer("OnLoad",1)
+			GnomeWorks:OnLoad()
 			GnomeWorks:UnregisterEvent("PLAYER_ENTERING_WORLD")
 		end )
 	else
 		GnomeWorks:RegisterEvent("ADDON_LOADED", function(self, name)
 --			print("gnomeworks detected the loading of "..tostring(name))
 			if name == "GnomeWorks" then
-				GnomeWorks:ScheduleTimer("OnLoad",1)
+--				GnomeWorks:ScheduleTimer("OnLoad",1)
+				GnomeWorks:OnLoad()
 				GnomeWorks:UnregisterEvent("ADDON_LOADED")
 			end
 		end)

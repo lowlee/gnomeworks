@@ -76,7 +76,7 @@ function GnomeWorks:RecipeGroupNew(player, tradeID, label, name)
 
 		local key = player..":"..tradeID..":"..label
 
-		local newGroup = { expanded = true, key = key, name = name or OVERALL_PARENT_GROUP_NAME, entries = {}, skillIndex = serial, locked = false }
+		local newGroup = { expanded = true, key = key, name = name or OVERALL_PARENT_GROUP_NAME, entries = {}, index = serial, locked = false }
 
 --[[
 		newGroup.expanded = true
@@ -130,7 +130,7 @@ function GnomeWorks:RecipeGroupCopy(s, d, noDB)
 	if s and d then
 		local player, tradeID, label = string.split(":", d.key)
 
-		d.skillIndex = s.skillIndex
+		d.index = s.nidex
 		d.expanded = s.expanded
 		d.entries = {}
 
@@ -140,9 +140,9 @@ function GnomeWorks:RecipeGroupCopy(s, d, noDB)
 
 				self:RecipeGroupCopy(s.entries[i].subGroup, newGroup, noDB)
 
-				self:RecipeGroupAddSubGroup(d, newGroup, s.entries[i].skillIndex, noDB)
+				self:RecipeGroupAddSubGroup(d, newGroup, s.entries[i].index, noDB)
 			else
-				self:RecipeGroupAddRecipe(d, s.entries[i].recipeID, s.entries[i].skillIndex, noDB)
+				self:RecipeGroupAddRecipe(d, s.entries[i].recipeID, s.entries[i].index, noDB)
 			end
 		end
 	end
@@ -151,7 +151,7 @@ end
 
 
 
-function GnomeWorks:RecipeGroupAddRecipe(group, recipeID, skillIndex, noDB)
+function GnomeWorks:RecipeGroupAddRecipe(group, recipeID, index, noDB)
 	recipeID = tonumber(recipeID)
 
 	if group and recipeID then
@@ -165,7 +165,7 @@ function GnomeWorks:RecipeGroupAddRecipe(group, recipeID, skillIndex, noDB)
 		end
 
 		if not currentEntry then
-			local newEntry = { recipeID = recipeID, name = self:GetRecipeName(recipeID), skillIndex = skillIndex, parent = group }
+			local newEntry = { recipeID = recipeID, name = self:GetRecipeName(recipeID), index = index, parent = group }
 
 --[[
 			newEntry.recipeID = recipeID
@@ -179,7 +179,7 @@ function GnomeWorks:RecipeGroupAddRecipe(group, recipeID, skillIndex, noDB)
 			currentEntry = newEntry
 		else
 			currentEntry.subGroup = subGroup
-			currentEntry.skillIndex = skillIndex
+			currentEntry.index = index
 			currentEntry.name = self:GetRecipeName(recipeID)
 			currentEntry.parent = group
 		end
@@ -193,7 +193,7 @@ function GnomeWorks:RecipeGroupAddRecipe(group, recipeID, skillIndex, noDB)
 end
 
 
-function GnomeWorks:RecipeGroupAddSubGroup(group, subGroup, skillIndex, noDB)
+function GnomeWorks:RecipeGroupAddSubGroup(group, subGroup, index, noDB)
 	if group and subGroup then
 		local currentEntry
 
@@ -205,10 +205,10 @@ function GnomeWorks:RecipeGroupAddSubGroup(group, subGroup, skillIndex, noDB)
 		end
 
 		if not currentEntry then
-			local newEntry = { subGroup = subGroup, skillIndex = skillIndex, name = subGroup.name, parent = group }
+			local newEntry = { subGroup = subGroup, index = index, name = subGroup.name, parent = group }
 
 			subGroup.parent = group
-			subGroup.skillIndex = skillIndex
+			subGroup.index = index
 --[[
 			newEntry.subGroup = subGroup
 			newEntry.skillIndex = skillIndex
@@ -218,10 +218,10 @@ function GnomeWorks:RecipeGroupAddSubGroup(group, subGroup, skillIndex, noDB)
 			table.insert(group.entries, newEntry)
 		else
 			subGroup.parent = group
-			subGroup.skillIndex = skillIndex
+			subGroup.index = index
 
 			currentEntry.subGroup = subGroup
-			currentEntry.skillIndex = skillIndex
+			currentEntry.index = index
 			currentEntry.name = subGroup.name
 			currentEntry.parent = group
 		end
@@ -540,7 +540,7 @@ end
 
 function GnomeWorks:RecipeGroupDump(group)
 	if group then
-		local groupString = group.key.."/"..group.name.."="..group.skillIndex
+		local groupString = group.key.."/"..group.name.."="..group.index
 
 		for v,entry in pairs(group.entries) do
 			if not entry.subGroup then
@@ -569,13 +569,13 @@ function GnomeWorks:RecipeGroupConstructDBString(group)
 		tradeID = tonumber(tradeID)
 
 		if not self.data.groupList[player][tradeID][label].autoGroup then
-			local groupString = group.skillIndex
+			local groupString = group.index
 
 			for v,entry in pairs(group.entries) do
 				if not entry.subGroup then
 					groupString = groupString..":"..entry.recipeID
 				else
-					groupString = groupString..":g"..entry.skillIndex	--entry.subGroup.name
+					groupString = groupString..":g"..entry.index	--entry.subGroup.name
 					self:RecipeGroupConstructDBString(entry.subGroup)
 				end
 			end
@@ -653,7 +653,7 @@ function GnomeWorks:RecipeGroupDeconstructDBStrings()
 				local groupIndex = tonumber(groupContents[1]) or serial
 
 				serial = serial + 1
-				group.skillIndex = groupIndex
+				group.index = groupIndex
 
 				groupNames[groupIndex] = name
 			end
@@ -671,7 +671,7 @@ function GnomeWorks:RecipeGroupDeconstructDBStrings()
 			for name,list in pairs(groupList) do
 				local group = self:RecipeGroupFind(player, tradeID, label, name)
 
-				local groupIndex = group.skillIndex
+				local groupIndex = group.index
 
 				if not group.initialized then
 					group.initialized = true
@@ -689,16 +689,16 @@ function GnomeWorks:RecipeGroupDeconstructDBStrings()
 							local subGroup = self:RecipeGroupFind(player, tradeID, label, groupNames[id])
 
 							if subGroup then
-								self:RecipeGroupAddSubGroup(group, subGroup, subGroup.skillIndex, true)
+								self:RecipeGroupAddSubGroup(group, subGroup, subGroup.index, true)
 							else
-								self:RecipeGroupAddSubGroup(group, subGroup, subGroup.skillIndex, true)		--?? wtf?
+								self:RecipeGroupAddSubGroup(group, subGroup, subGroup.index, true)		--?? wtf?
 							end
 						else
 							recipeID = tonumber(recipeID)
 --DEFAULT_CHAT_FRAME:AddMessage(recipeID)
-							local skillIndex = self.data.skillIndexLookup[player][recipeID]
---DEFAULT_CHAT_FRAME:AddMessage("adding recipe "..recipeID.." to "..group.name.."/"..player..":"..skillIndex)
-							self:RecipeGroupAddRecipe(group, recipeID, skillIndex, true)
+							local index = self.data.skillIndexLookup[player][recipeID]
+--DEFAULT_CHAT_FRAME:AddMessage("adding recipe "..recipeID.." to "..group.name.."/"..player..":"..index)
+							self:RecipeGroupAddRecipe(group, recipeID, index, true)
 						end
 					end
 				end
@@ -940,10 +940,10 @@ function GnomeWorks:RecipeGroupOpNew()
 
 	for recipeID,recipe in pairs(self.data.recipeList) do
 		if recipe.tradeID == tradeID then
-			local skillIndex = self.data.skillIndexLookup[player][recipeID]
+			local index = self.data.skillIndexLookup[player][recipeID]
 
-			if skillIndex then
-				self:RecipeGroupAddRecipe(newMain, recipeID, skillIndex, true)
+			if index then
+				self:RecipeGroupAddRecipe(newMain, recipeID, index, true)
 			end
 		end
 	end
