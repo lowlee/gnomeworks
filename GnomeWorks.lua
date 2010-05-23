@@ -241,7 +241,6 @@ do
 	end
 
 
-
 	if not IsAddOnLoaded("AddOnLoader") then
 		GnomeWorks:RegisterEvent("PLAYER_ENTERING_WORLD", function()
 			GnomeWorks:ScheduleTimer("OnLoad",1)

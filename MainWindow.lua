@@ -92,6 +92,11 @@ do
 		local function filterSet(button, setting)
 			filterParameters[setting].enabled = not filterParameters[setting].enabled
 
+			if filterParameters[setting].OnClick then
+				filterParameters[setting].OnClick(filterParameters,setting)
+			end
+
+
 			if filterParameters[setting].enabled then
 				activeFilterList[setting] = filterParameters[setting]
 			else
@@ -121,18 +126,35 @@ do
 		for filterName,filter in pairs(filterParameters) do
 			local menuEntry = {
 				text = filter.label,
+				icon = filter.icon,
 				tooltipText = filter.tooltip,
 				func = filterSet,
 				arg1 = filterName,
-				checked = function()
-					return filterParameters[filterName].enabled
-				end,
 			}
+
+			if filter.checked then
+				menuEntry.checked = filter.checked
+			else
+				menuEntry.checked = function()
+					return filterParameters[filterName].enabled
+				end
+			end
+
+			if filter.coords then
+				menuEntry.tCoordLeft,menuEntry.tCoordRight,menuEntry.tCoordBottom,menuEntry.tCoordTop = unpack(filter.coords)
+			end
 
 			table.insert(menu, menuEntry)
 		end
 	end
 
+	local function radioButton(parameters, index)
+		for k,v in pairs(parameters) do
+			if k ~= index then
+				v.enabled = false
+			end
+		end
+	end
 
 
 	local craftFilterMenu = {
@@ -176,23 +198,72 @@ do
 	GnomeWorks:CreateFilterMenu(levelFilterParameters, levelFilterMenu, 1)
 
 
-
 	local recipeFilterMenu = {
 	}
 
+
 	local recipeFilterParameters = {
-		hideTrivial = {
-			label = "Hide Trivial",
+		{
+			label = "",
+			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
+			coords = {0,1,0,.25},
 			enabled = false,
 			func = function(entry)
-				local skillData = GnomeWorks:GetSkillData(entry.skillIndex)
-				if skillData and skillData.difficulty ~= "trivial" then
+				local difficulty = GnomeWorks:GetSkillDifficultyLevel(entry.skillIndex)
+				if difficulty > 3 then
 					return false
 				else
 					return true
 				end
 			end,
+			OnClick = radioButton,
 		},
+		{
+			label = "",
+			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
+			coords = {0,1,.25,.5},
+			func = function(entry)
+				local difficulty = GnomeWorks:GetSkillDifficultyLevel(entry.skillIndex)
+				if difficulty > 2 then
+					return false
+				else
+					return true
+				end
+			end,
+			OnClick = radioButton,
+		},
+		{
+			label = "",
+			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
+			coords = {0,1,.5,.75},
+			enabled = false,
+			func = function(entry)
+				local difficulty = GnomeWorks:GetSkillDifficultyLevel(entry.skillIndex)
+				if difficulty > 1 then
+					return false
+				else
+					return true
+				end
+			end,
+			OnClick = radioButton,
+		},
+--[[
+		{
+			label = "",
+			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
+			coords = {0,1,0.75,1},
+			enabled = false,
+			func = function(entry)
+				local difficulty = GnomeWorks:GetSkillDifficultyLevel(entry.skillIndex)
+				if difficulty > 0 then
+					return false
+				else
+					return true
+				end
+			end,
+			OnClick = radioButton,
+		},
+]]
 	}
 
 	GnomeWorks:CreateFilterMenu(recipeFilterParameters, recipeFilterMenu, 2)

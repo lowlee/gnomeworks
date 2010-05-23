@@ -619,7 +619,19 @@ do
 		tradeID = tradeID or self.tradeID
 		player = player or self.player
 
-		local link = (self.data.playerData[player] and self.data.playerData[player].links[tradeID]) or linkDB[player][tradeID]
+		if not player then
+			print("player is nil")
+		end
+
+		if not tradeID then
+			print("tradeID is nil")
+		end
+
+		local link = (self.data.playerData[player] and self.data.playerData[player].links[tradeID])
+
+		if not link then
+			link = linkDB[player][tradeID]
+		end
 
 		if link then
 			local rank, maxRank = string.match(link,"trade:%d+:(%d+):(%d+)")
@@ -638,10 +650,16 @@ do
 		return skillTypeColor[skillType]
 	end
 
-	function GnomeWorks:GetSkillData(skillIndex, key)
-		key = key or self.player..":"..self.tradeID
+	function GnomeWorks:GetSkillDifficultyLevel(index)
+		local skillName, skillType = GetTradeSkillInfo(index)
 
-		return self.data.skillDB[key][skillIndex]
+		return skillTypeStyle[skillType].level
+	end
+
+	function GnomeWorks:GetSkillDifficulty(index)
+		local skillName, skillType = GetTradeSkillInfo(index)
+
+		return skilltype
 	end
 
 

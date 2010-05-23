@@ -240,7 +240,12 @@ do
 												edgeFile = "Interface\\AddOns\\GnomeWorks\\Art\\newFrameBorder.tga",
 												tile = true, tileSize = 48, edgeSize = 48,
 												insets = { left = 4, right = 4, top = 4, bottom = 4 }})
-
+--[[
+		self:SetBetterBackdrop(frame,{bgFile = "Interface\\AddOns\\GnomeWorks\\Art\\resizableBarberFrameBG.tga",
+												edgeFile = "Interface\\AddOns\\GnomeWorks\\Art\\resizableBarberFrameBorder.tga",
+												tile = true, tileSize = 48, edgeSize = 48,
+												insets = { left = 4, right = 4, top = 4, bottom = 4 }})
+]]
 
 		frame:SetScript("OnSizeChanged", function() resizeFunction() end)
 
