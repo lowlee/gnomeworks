@@ -202,6 +202,15 @@ do
 		GnomeWorks.data.inventoryData["All Recipes"] = {}
 
 
+
+		for name,plugin in pairs(GnomeWorks.plugins) do
+print("initializing",name)
+			plugin.initialize()
+		end
+
+
+
+
 		GnomeWorks.blizzardFrameShow = TradeSkillFrame_Show
 
 --		TradeSkillFrame_Show = function()

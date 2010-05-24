@@ -21,13 +21,13 @@ do
 
 		name - name of plugin (eg "LilSparky's Workshop")
 		shortName - short name of plugin (eg "LSW")
-
+		initialize - function to call prior to initializing gnomeworks
 
 		returns plugin table (used for connecting other functions to plugin)
 	]]
 
-	function GnomeWorks:RegisterPlugin(name, shortName)
-		GnomeWorks.plugins[name] = { shortName = shortName, enabled = true }
+	function GnomeWorks:RegisterPlugin(name, shortName, initialize)
+		GnomeWorks.plugins[name] = { shortName = shortName, enabled = true, initialize = initialize }
 
 		return GnomeWorks.plugins[name]
 	end

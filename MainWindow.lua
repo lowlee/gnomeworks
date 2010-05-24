@@ -222,6 +222,7 @@ do
 				parameters[index].enabled = not parameters[index].enabled
 
 				recipeFilterMenu[1].checked = parameters[index].enabled
+				sf:Refresh()
 			end,
 			checked = false,
 		},

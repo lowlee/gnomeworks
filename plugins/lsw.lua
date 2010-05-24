@@ -1,0 +1,332 @@
+
+-- LSW plugin Interface
+local pluginToken
+
+local function RegisterWithLSW()
+	local valueColumn
+	local costColumn
+	local scrollFrame
+
+	local reagentCostColumn
+	local reagentScrollFrame
+
+	local itemCache = LSW.itemCache
+
+
+	local itemFateColor={
+		["d"]="ff008000",
+		["a"]="ff909050",
+		["v"]="ff206080",
+		["?"]="ff800000",
+	}
+
+	local fateString={["a"]="Auction", ["v"]="Vendor", ["d"]="Disenchant"}
+
+
+
+	local costFilterMenu = {
+	}
+
+	local costFilterParameters = {
+		hideUnprofitable = {
+			label = "Hide Unprofitable",
+			enabled = false,
+			func = function(entry)
+				return (entry.value or 0) < (entry.cost or 0)
+			end,
+		},
+	}
+
+
+
+
+
+	local function columnControl(cellFrame,button,source)
+		local filterMenuFrame = getglobal("GnomeWorksFilterMenuFrame")
+		local scrollFrame = cellFrame:GetParent():GetParent()
+
+		if button == "RightButton" then
+			if cellFrame.header.filterMenu then
+				local x, y = GetCursorPosition()
+				local uiScale = UIParent:GetEffectiveScale()
+
+				EasyMenu(cellFrame.header.filterMenu, filterMenuFrame, UIParent, x/uiScale,y/uiScale, "MENU", 5)
+			end
+		else
+			scrollFrame.sortInvert = (scrollFrame.SortCompare == cellFrame.header.sortCompare) and not scrollFrame.sortInvert
+
+			scrollFrame:HighlightColumn(cellFrame.header.name, scrollFrame.sortInvert)
+			scrollFrame.SortCompare = cellFrame.header.sortCompare
+			scrollFrame:Refresh()
+		end
+	end
+
+
+
+	local valueColumnHeader = {
+		name = "Value",
+		width = 50,
+		headerAlign = "CENTER",
+		align = "RIGHT",
+		font = "GameFontHighlightSmall",
+--		filterMenu = costFilterMenu,
+		sortCompare = function(a,b)
+			return (a.value or 0) - (b.value or 0)
+		end,
+		draw = function (rowFrame, cellFrame, entry)
+			if not entry.subGroup then
+				local itemFate = entry.fate or "?"
+				local costAmount = entry.cost
+				local valueAmount = entry.value
+
+				local itemFateString = string.format("|c%s%s|r", itemFateColor[itemFate], itemFate)
+				local hilight = (costAmount or 0) < (valueAmount or 0)
+				local valueText
+
+				if itemFate == "a" and itemCache[itemID] and itemCache[itemID].BOP then
+					valueText = BOP_STRING
+				elseif itemFate == "d" and itemCache[itemID] and not itemCache[itemID].disenchantValue then
+					valueText = NO_DE_STRING
+				else
+					if LSWConfig.valueAsPercent then
+						if (costAmount > 0 and valueAmount >= 0) then
+							local per = valueAmount / costAmount
+
+							if per < .1 then
+								per = math.floor(per*1000)/10
+								valueText = string.format("%2.1f%%",per)
+							elseif per > 10 then
+								per = math.floor(per*10)/10
+								valueText = string.format("%2.1fx",per)
+							else
+								per = math.floor(per*100)
+								valueText = per.."%"
+							end
+
+							if (hilight) then
+								valueText = "|cffd0d0d0"..valueText..itemFateString
+							else
+								valueText = "|cffd02020"..valueText..itemFateString
+							end
+
+						elseif (valueAmount >= 0) then
+							valueText = "inf"..itemFateString
+						end
+					else
+						if LSWConfig.singleColumn then
+							valueText = (LSW:FormatMoney((valueAmount or 0) - (costAmount or 0),hilight) or "--")..itemFateString
+						else
+							if valueAmount < 0 then
+								valueText = "   --"..itemFateString
+							else
+								valueText = (LSW:FormatMoney(valueAmount,hilight) or "--")..itemFateString
+							end
+						end
+					end
+				end
+
+
+				cellFrame.text:SetText(valueText)
+			else
+				cellFrame.text:SetText("")
+			end
+		end,
+		OnClick = function (cellFrame, button, source)
+			if cellFrame:GetParent().rowIndex>0 then
+				local entry = cellFrame:GetParent().data
+				cellFrame:SetID(entry.index)
+				LSW.buttonScripts.valueButton.OnClick(cellFrame, button)
+			else
+				columnControl(cellFrame, button, source)
+			end
+		end,
+		OnEnter = function (cellFrame)
+			if cellFrame:GetParent().rowIndex>0 then
+				local entry = cellFrame:GetParent().data
+				cellFrame:SetID(entry.index)
+				LSW.buttonScripts.valueButton.OnEnter(cellFrame)
+			else
+			end
+		end,
+		OnLeave = function (cellFrame)
+			if cellFrame:GetParent().rowIndex>0 then
+				local entry = cellFrame:GetParent().data
+				cellFrame:SetID(entry.index)
+				LSW.buttonScripts.valueButton.OnLeave(cellFrame)
+			else
+			end
+		end,
+	}
+
+
+
+	local costColumnHeader = {
+		name = "Cost",
+		width = 50,
+		headerAlign = "CENTER",
+		align = "RIGHT",
+		font = "GameFontHighlightSmall",
+		filterMenu = costFilterMenu,
+		sortCompare = function(a,b)
+			return (a.cost or 0) - (b.cost or 0)
+		end,
+		draw = function (rowFrame, cellFrame, entry)
+			if not entry.subGroup then
+				cellFrame.text:SetText((LSW:FormatMoney(entry.cost,false) or "").."  ")
+			else
+				cellFrame.text:SetText("")
+			end
+		end,
+		OnClick = function (cellFrame, button, source)
+			if cellFrame:GetParent().rowIndex>0 then
+				local entry = cellFrame:GetParent().data
+				cellFrame:SetID(entry.index)
+				LSW.buttonScripts.costButton.OnClick(cellFrame, button)
+			else
+				columnControl(cellFrame,button,source)
+			end
+		end,
+		OnEnter = function (cellFrame)
+			if cellFrame:GetParent().rowIndex>0 then
+				local entry = cellFrame:GetParent().data
+				cellFrame:SetID(entry.index)
+				LSW.buttonScripts.costButton.OnEnter(cellFrame)
+			else
+			end
+		end,
+		OnLeave = function (cellFrame)
+			if cellFrame:GetParent().rowIndex>0 then
+				local entry = cellFrame:GetParent().data
+				cellFrame:SetID(entry.index)
+				LSW.buttonScripts.costButton.OnLeave(cellFrame)
+			else
+			end
+		end,
+	}
+
+
+
+	local reagentCostColumnHeader = {
+		name = "Cost",
+		width = 50,
+		headerAlign = "CENTER",
+		align = "RIGHT",
+		font = "GameFontHighlightSmall",
+--		filterMenu = costFilterMenu,
+		sortCompare = function(a,b)
+			return (a.cost or 0) - (b.cost or 0)
+		end,
+		draw = function (rowFrame, cellFrame, entry)
+			if not entry.subGroup then
+				cellFrame.text:SetText((LSW:FormatMoney(entry.cost,true) or "").."  ")
+			else
+				cellFrame.text:SetText("")
+			end
+		end,
+		OnClick = function (cellFrame, button, source)
+			if cellFrame:GetParent().rowIndex>0 then
+				local entry = cellFrame:GetParent().data
+--				cellFrame:SetID(entry.skillIndex)
+--				LSW.buttonScripts.costButton.OnClick(cellFrame, button)
+			else
+				columnControl(cellFrame,button,source)
+			end
+		end,
+		OnEnter = function (cellFrame)
+			if cellFrame:GetParent().rowIndex>0 then
+				local entry = cellFrame:GetParent().data
+--				cellFrame:SetID(entry.skillIndex)
+--				LSW.buttonScripts.costButton.OnEnter(cellFrame)
+			else
+			end
+		end,
+		OnLeave = function (cellFrame)
+			if cellFrame:GetParent().rowIndex>0 then
+				local entry = cellFrame:GetParent().data
+--				cellFrame:SetID(entry.skillIndex)
+--				LSW.buttonScripts.costButton.OnLeave(cellFrame)
+			else
+			end
+		end,
+	}
+
+
+	local function updateData(scrollFrame, entry)
+		local skillName, skillType, itemLink, recipeLink, itemID, recipeID = LSW:GetTradeSkillData(entry.index)
+
+		if skillType ~= "header" then
+			entry.value, entry.fate = LSW:GetSkillValue(recipeID, globalFate)
+			entry.cost = LSW:GetSkillCost(recipeID)
+		end
+	end
+
+
+	local function updateReagentData(scrollFrame, entry)
+		entry.cost = LSW:GetItemCost(entry.id) * entry.numNeeded
+--[[
+		local skillName, skillType, itemLink, recipeLink, itemID, recipeID = LSW:GetTradeSkillData(entry.skillIndex)
+
+		if skillType ~= "header" then
+			entry.value, entry.fate = LSW:GetSkillValue(recipeID, globalFate)
+			entry.cost = LSW:GetSkillCost(recipeID)
+		end
+]]
+	end
+
+
+	local function refreshWindow()
+		scrollFrame:Refresh()
+	end
+
+
+	local function Init()
+--		LSW:ChatMessage("LilSparky's Workshop plugging into Skillet (v"..Skillet.version..")");
+
+
+
+
+
+		scrollFrame = GnomeWorks:GetSkillListScrollFrame()
+
+		scrollFrame:RegisterRowUpdate(updateData, pluginToken)
+
+		valueColumn = scrollFrame:AddColumn(valueColumnHeader, pluginToken)
+		costColumn = scrollFrame:AddColumn(costColumnHeader, pluginToken)
+
+		GnomeWorks:CreateFilterMenu(costFilterParameters, costFilterMenu, costColumnHeader)
+
+
+
+		reagentScrollFrame = GnomeWorks:GetReagentListScrollFrame()
+		reagentScrollFrame:RegisterRowUpdate(updateReagentData, pluginToken)
+
+		reagentCostColumn = reagentScrollFrame:AddColumn(reagentCostColumnHeader, pluginToken)
+
+--		GnomeWorks:CreateFilterMenu(costFilterParameters, reagentCostFilterMenu, reagentCostColumnHeader)
+
+
+
+
+		LSW.parentFrame = GnomeWorks:GetMainFrame()
+
+		LSW.RefreshWindow = refreshWindow
+
+	end
+
+
+	local function Test()
+		if GnomeWorks then
+			return true
+		end
+
+		return false
+	end
+
+
+	LSW:RegisterFrameSupport("GnomeWorks", Test, Init)
+end
+
+
+pluginToken = GnomeWorks:RegisterPlugin("LilSparky's Workshop", "LSW", RegisterWithLSW)
+
+

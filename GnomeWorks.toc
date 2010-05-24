@@ -33,6 +33,9 @@ Libs\AceTimer-3.0\AceTimer-3.0.lua
 #Locale\Locale-esES.lua
 #Locale\Locale-ruRU.lua
 
+
+
+
 #### Main files
 GnomeWorks.lua
 MainWindow.lua
@@ -51,12 +54,20 @@ Inventory.lua
 API.lua
 
 
+
+### plugin support
+plugins\lsw.lua
+
+
+
 #### hooking into different frames/events
-FrameHooks/Vendor.lua
-FrameHooks/AuctionHouse.lua
-FrameHooks/Bank.lua
-FrameHooks/GuildBank.lua
-FrameHooks/TradeWindow.lua
+FrameHooks\Vendor.lua
+FrameHooks\AuctionHouse.lua
+FrameHooks\Bank.lua
+FrameHooks\GuildBank.lua
+FrameHooks\TradeWindow.lua
+
+
 
 
 
