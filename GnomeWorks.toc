@@ -20,6 +20,7 @@ Libs\LibPeriodicTable-3.1\LibPeriodicTable-3.1-TradeskillResultMats\LibPeriodicT
 Libs\LibPeriodicTable-3.1\LibPeriodicTable-3.1-TradeskillLevels\LibPeriodicTable-3.1-TradeskillLevels.lua
 Libs\AceEvent-3.0\AceEvent-3.0.lua
 Libs\AceTimer-3.0\AceTimer-3.0.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
 #@end-no-lib-strip@
 
 

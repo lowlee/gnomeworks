@@ -105,7 +105,7 @@ do
 							cellFrame.text:SetTextColor(1,1,1)
 						end
 
-						cellFrame.text:SetFormattedText(" |T%s:20:20:0:-2|t %s",itemTexture or "", itemName or "item:"..id)
+						cellFrame.text:SetFormattedText(" |T%s:20:20:0:-2|t %s",itemTexture or "", itemName or "item:"..entry.id)
 					end,
 		}, -- [2]
 		{

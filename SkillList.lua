@@ -207,7 +207,7 @@ DebugSpam("parsing skill list")
 			local link, tradeLink = GetSpellLink((GetSpellInfo(id)))
 
 			if link then
-DebugSpam("found ", link)
+DebugSpam("found ", link, tradeLink)
 				if id == 2656 then
 					tradeLink = "|cffffd000|Htrade:2656:1:1:0:/|h["..GetSpellInfo(id) .."]|h|r"			-- fake link for data collection purposes
 				end

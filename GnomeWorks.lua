@@ -16,48 +16,6 @@ LibStub("AceEvent-3.0"):Embed(GnomeWorks)
 LibStub("AceTimer-3.0"):Embed(GnomeWorks)
 
 
---[[
-	options
-
-	alts
-		GUID : realm-faction-name
-
-	links
-		GUID : link
-
-	trackedItems
-		itemID : true
-
-	cooldowns
-		GUID
-			recipeID : expiration
-
-
--- maybe:
-
-	inventory
-		GUID
-			itemID : link
-]]
-
---[[
--- disable standard frame
-do
-
-
-	local function DisableBlizzardTradeSkill()
-
-	end
-end
-
-
--- main event manager
-do
-	function GnomeWorks:EventManager(frame, event, ...)
-	end
-end
-]]
-
 -- handle load sequence
 do
 
@@ -203,13 +161,6 @@ do
 
 
 
-		for name,plugin in pairs(GnomeWorks.plugins) do
-print("initializing",name)
-			plugin.initialize()
-		end
-
-
-
 
 		GnomeWorks.blizzardFrameShow = TradeSkillFrame_Show
 
@@ -244,6 +195,14 @@ print("initializing",name)
 
 
 
+		for name,plugin in pairs(GnomeWorks.plugins) do
+print("initializing",name)
+			plugin.initialize()
+		end
+
+
+
+
 		hooksecurefunc("SetItemRef", function(s,link,button)
 			if string.find(s,"trade:") then
 				GnomeWorks:CacheTradeSkillLink(link)
@@ -251,13 +210,29 @@ print("initializing",name)
 		end)
 
 		collectgarbage("collect")
+
+
+		if not IsAddOnLoaded("AddOnLoader") then
+			GnomeWorks:TRADE_SKILL_SHOW()
+			GnomeWorks:TRADE_SKILL_UPDATE()
+		end
 	end
 
+--[[
+	local eventFrame = CreateFrame("Frame")
+
+	eventFrame:RegisterAllEvents()
+
+	eventFrame:SetScript("OnEvent", function(frame, event, ...) if string.match(event, "SKILL") then print(event, ...) end end)
+
+--	GetNumSkillLines()
+]]
+
 	if not IsAddOnLoaded("AddOnLoader") then
-		GnomeWorks:RegisterEvent("PLAYER_ENTERING_WORLD", function()
---			GnomeWorks:ScheduleTimer("OnLoad",1)
-			GnomeWorks:OnLoad()
-			GnomeWorks:UnregisterEvent("PLAYER_ENTERING_WORLD")
+		GnomeWorks:RegisterEvent("TRADE_SKILL_SHOW", function()
+			GnomeWorks:UnregisterEvent("TRADE_SKILL_SHOW")
+			GnomeWorks:ScheduleTimer("OnLoad",.01)
+--			GnomeWorks:OnLoad()
 		end )
 	else
 		GnomeWorks:RegisterEvent("ADDON_LOADED", function(self, name)

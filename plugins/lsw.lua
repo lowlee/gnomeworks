@@ -243,7 +243,7 @@ local function RegisterWithLSW()
 
 		local residualMaterials = {}
 
-		LSW.buttonScripts.CostButton_AddItem(itemID, numNeeded, 1, residualMaterials)
+		local total = LSW.buttonScripts.CostButton_AddItem(itemID, numNeeded, 1, residualMaterials)
 
 		if LSWConfig.costBasis == COST_BASIS_PURCHASE then
 			LSWTooltip:AddDoubleLine("Total estimated purchase cost: ", LSW:FormatMoney(total,true).."  ")
