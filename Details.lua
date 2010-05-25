@@ -95,7 +95,7 @@ do
 								GameTooltip:Hide()
 							end,
 			draw =	function (rowFrame,cellFrame,entry)
-						local itemName, itemLink = GetItemInfo(entry.id)
+						local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(entry.id)
 
 						if GnomeWorks:VendorSellsItem(entry.id) then
 							cellFrame.text:SetTextColor(.25,1.0,.25)
@@ -105,7 +105,7 @@ do
 							cellFrame.text:SetTextColor(1,1,1)
 						end
 
-						cellFrame.text:SetFormattedText("%s",itemName or "item:"..id)
+						cellFrame.text:SetFormattedText(" |T%s:20:20:0:-2|t %s",itemTexture or "", itemName or "item:"..id)
 					end,
 		}, -- [2]
 		{
@@ -120,8 +120,6 @@ do
 				end
 			end,
 			draw =	function (rowFrame,cellFrame,entry)
---							local _, bag, _, bank = GnomeWorks:GetInventory(GnomeWorks.player, entry.id)
---							local _,_,_, alt = GnomeWorks:GetFactionInventory(entry.id)
 						local bag = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBag queue")
 						local bank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBank queue")
 						local alt = GnomeWorks:GetInventoryCount(entry.id, "faction", "craftedBank queue")

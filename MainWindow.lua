@@ -219,21 +219,29 @@ do
 			func = function()
 				local parameters = recipeLevelMenu.parameters
 				local index = recipeFilterMenu[1].filterIndex
-				parameters[index].enabled = not parameters[index].enabled
+
+--				filterSet(button, setting)
+
+				recipeLevelMenu[index].func(nil, recipeLevelMenu[index].arg1)
+
+--				parameters[index].enabled = not parameters[index].enabled
 
 				recipeFilterMenu[1].checked = parameters[index].enabled
-				sf:Refresh()
+
+				--sf:Refresh()
 			end,
 			checked = false,
 		},
 	}
 
 	local function adjustFilterIcon(parameters, index)
-		recipeFilterMenu[1].checked = true
+		radioButton(parameters, index)
+
+		recipeFilterMenu[1].checked = parameters[index].enabled
 		recipeFilterMenu[1].tCoordBottom = index/4-.25
 		recipeFilterMenu[1].tCoordTop = index/4
 		recipeFilterMenu[1].filterIndex = index
-		radioButton(parameters, index)
+
 	end
 
 	local recipeLevelParameters = {
@@ -313,16 +321,17 @@ do
 
 	columnHeaders = {
 		{
-			["name"] = "Level",
-			["align"] = "CENTER",
-			["width"] = 36,
-			["bgcolor"] = colorBlack,
-			["tooltipText"] = "click to sort\rright-click to filter",
-			["font"] = "GameFontHighlightSmall",
-			["sortCompare"] = function(a,b)
+			name = "Level",
+			align = "CENTER",
+			width = 36,
+			font = "GameFontHighlightSmall",
+			sortCompare = function(a,b)
 				return (a.itemLevel or 0) - (b.itemLevel or 0)
 			end,
-			["draw"] = function (rowFrame,cellFrame,entry)
+			enabled = function()
+				return GnomeWorks.tradeID ~= 53428
+			end,
+			draw = function (rowFrame,cellFrame,entry)
 							if entry.subGroup then
 								cellFrame.text:SetText("")
 								return
@@ -344,7 +353,7 @@ do
 --								local _,skillType,craftable = GetTradeSkillInfo(i)
 
 						end,
-			["OnClick"] = function(cellFrame, button, source)
+			OnClick = function(cellFrame, button, source)
 							if cellFrame:GetParent().rowIndex == 0 then
 								if button == "RightButton" then
 									local x, y = GetCursorPosition()
@@ -360,7 +369,7 @@ do
 								end
 							end
 						end,
-			["OnEnter"] =	function (cellFrame)
+			OnEnter =	function (cellFrame)
 								if cellFrame:GetParent().rowIndex == 0 then
 									GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
 									GameTooltip:ClearLines()
@@ -372,7 +381,7 @@ do
 									GameTooltip:Show()
 								end
 							end,
-			["OnLeave"] = 	function()
+			OnLeave = 	function()
 								GameTooltip:Hide()
 							end,
 		}, -- [1]
@@ -437,15 +446,8 @@ do
 							end,
 			["draw"] =	function (rowFrame,cellFrame,entry)
 							cellFrame.data = entry
---							local entry = data[realrow]
---							local colData = entry.cols[column]
-
---							local texExpanded = "Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga"
---							local texClosed = "Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga"
-
 
 							cellFrame.text:SetPoint("LEFT", cellFrame, "LEFT", entry.depth*8+4+12, 0)
-							cellFrame.text:SetPoint("RIGHT", cellFrame, "RIGHT", -4+12, 0)
 
 							if entry.subGroup then
 								if entry.subGroup.expanded then
@@ -459,7 +461,11 @@ do
 								cellFrame.text:SetFormattedText("%s (%d Recipes)",entry.name,#entry.subGroup.entries)
 								cellFrame.button:Show()
 							else
-								cellFrame.text:SetText(entry.name)
+								local itemLink = GetTradeSkillItemLink(entry.index)
+								local spellName = GetSpellInfo(entry.recipeID)
+
+								cellFrame.text:SetFormattedText("|T%s:16:16:0:-2|t %s", GetTradeSkillIcon(entry.index) or "", spellName)
+
 								cellFrame.button:Hide()
 							end
 
@@ -478,6 +484,7 @@ do
 
 							cellFrame.text:SetTextColor(cr,cg,cb)
 						end,
+
 			["OnEnter"] =	function (cellFrame)
 								if cellFrame:GetParent().rowIndex == 0 then
 									GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
@@ -504,6 +511,9 @@ do
 			["dataField"]= "craftBag",
 			["sortCompare"] = function(a,b)
 				return (a.craftAlt or 0) - (b.craftAlt or 0)
+			end,
+			enabled = function()
+				return GnomeWorks.tradeID ~= 53428
 			end,
 			["OnClick"] = 	function(cellFrame, button, source)
 								if cellFrame:GetParent().rowIndex == 0 then
@@ -661,10 +671,12 @@ do
 				local x = 0
 
 				for i=1,#scrollFrame.columnFrames do
-					scrollFrame.columnFrames[i]:SetPoint("LEFT",scrollFrame, "LEFT", x,0)
-					scrollFrame.columnFrames[i]:SetPoint("RIGHT",scrollFrame, "LEFT", x+scrollFrame.columnWidth[i],0)
+					local w = scrollFrame.columnFrames[i]:IsShown() and scrollFrame.columnWidth[i] or 0
 
-					x = x + scrollFrame.columnWidth[i]
+					scrollFrame.columnFrames[i]:SetPoint("LEFT",scrollFrame, "LEFT", x,0)
+					scrollFrame.columnFrames[i]:SetPoint("RIGHT",scrollFrame, "LEFT", x+w,0)
+
+					x = x + w
 				end
 			end
 		end

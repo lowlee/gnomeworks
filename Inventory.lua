@@ -5,10 +5,13 @@ local function DebugSpam(...)
 end
 
 
+local LARGE_NUMBER = 1000000
 
 do
 	local itemVisited = {}
 	local GnomeWorks = GnomeWorks
+	local GnomeworksDB = GnomeWorksDB
+
 	local bagThrottleTimer
 
 
@@ -44,15 +47,36 @@ do
 
 			if link then
 				local itemID = string.match(link, "item:(%d+)")
+				local spoofedRecipeID = itemID+200000
 
 				itemID = tonumber(itemID)
 
-				if GnomeWorks.data.reagentUsage[itemID] and not GnomeWorksDB.vendorItems[itemID] then
+				if GnomeWorks.data.reagentUsage[itemID] and not GnomeWorksDB.vendorItems[itemID] and not GnomeWorksDB.results[spoofedRecipeID] then
 					local name, texture, price, quantity, numAvailable, isUsable, extendedCost = GetMerchantItemInfo(i)
 
 					if numAvailable == -1 then
-						print("|c008080ffGnomeWorks recording vendor item: ",link)
-						GnomeWorksDB.vendorItems[itemID] = true
+						local honorPoints, arenaPoints, itemCount = GetMerchantItemCostInfo(index);
+
+						if not itemCount or itemCount == 0 then
+							print("|c008080ffGnomeWorks recording vendor item: ",link)
+							GnomeWorksDB.vendorItems[itemID] = true
+						else
+							local reagents = {}
+							GnomeWorksDB.results[spoofedRecipeID] = { [itemID] = quantity }
+							GnomeWorksDB.names[spoofedRecipeID] = "Purchase "..GetItemInfo(itemID)
+
+							for n=1,itemCount do
+								local itemTexture, itemValue, itemLink = GetMerchantItemCostItem(i, n)
+
+								local costItemID = tonumber(string.match(itemLink,"item:(%d+)"))
+
+								reagents[costItemID] = itemValue
+							end
+
+							GnomeWorksDB.results[spoofedRecipeID] = reagents
+
+							print("|c008080ffGnomeWorks recording vendor converstion for item: ",link)
+						end
 					end
 				end
 			end
@@ -65,7 +89,7 @@ do
 
 
 	local function CalculateRecipeCrafting(craftabilityTable, reagents, player, containerList)
-		local numCraftable = 100000
+		local numCraftable = LARGE_NUMBER
 
 		for reagentID, numNeeded in pairs(reagents) do
 			local numReagentCraftable = GnomeWorks:InventoryReagentCraftability(craftabilityTable, reagentID, player, containerList)
@@ -128,7 +152,7 @@ do
 
 
 		if reagents then													-- make sure that recipe is in the database before continuing
-			local numCraftable = 100000000
+			local numCraftable
 
 			local vendorOnly = true
 
@@ -139,7 +163,11 @@ do
 					vendorOnly = nil
 				end
 
-				numCraftable = math.min(numCraftable, math.floor(reagentAvailability/numNeeded))
+				numCraftable = math.min(numCraftable or LARGE_NUMBER, math.floor(reagentAvailability/numNeeded))
+			end
+
+			if not numCraftable then
+				numCraftable = 0
 			end
 
 			GnomeWorksDB.vendorOnly[recipeID] = vendorOnly
@@ -258,7 +286,7 @@ do
 				for container in string.gmatch(containerList, "%a+") do
 					if container == "vendor" then
 						if self:VendorSellsItem(itemID) then
-							return 100000
+							return LARGE_NUMBER
 						end
 					else
 						if inventoryData[container] then
@@ -280,7 +308,7 @@ do
 
 					if container == "vendor" then
 						if self:VendorSellsItem(itemID) then
-							return 100000
+							return LARGE_NUMBER
 						end
 					else
 						if inventoryData[container] then

@@ -6,7 +6,24 @@ local libScrollKit = {}
 
 
 -- shell sort function
-do
+-- Written by Rici Lake. The author disclaims all copyright and offers no warranty.
+--
+-- This module returns a single function (not a table) whose interface is upwards-
+-- compatible with the interface to table.sort:
+--
+-- array = shellsort(array, before, n)
+-- array is an array of comparable elements to be sorted in place
+-- before is a function of two arguments which returns true if its first argument
+--    should be before the second argument in the second result. It must define
+--    a total order on the elements of array.
+--      Alternatively, before can be one of the strings "<" or ">", in which case
+--    the comparison will be done with the indicated operator.
+--    If before is omitted, the default value is "<"
+-- n is the number of elements in the array. If it is omitted, #array will be used.
+-- For convenience, shellsort returns its first argument.
+
+
+local shellsort do
   local incs = { 1391376,
                  463792, 198768, 86961, 33936,
                  13776, 4592, 1968, 861, 336,
@@ -354,7 +371,7 @@ do
 		end
 	end
 
-	local function Refresh(scrollFrame)
+	local function RefreshRows(scrollFrame)
 		if #scrollFrame.rowUpdateRegistry>0 then
 			scrollFrame:UpdateData(scrollFrame.data, 0)
 		end
@@ -483,7 +500,7 @@ do
 		sf.SortCompare = nil
 		sf.IsEntryFiltered = IsEntryFiltered
 
-		sf.Refresh = Refresh
+		sf.RefreshRows = RefreshRows
 
 		sf.SetHandlerScripts = SetHandlerScripts
 
@@ -637,6 +654,8 @@ do
 			scrollFrame.columnHeaders[newIndex] = header
 
 			onResize(sf,sf:GetWidth(), sf:GetHeight())
+
+			return header
 		end
 
 
@@ -733,6 +752,42 @@ do
 			end
 		end
 
+		sf.Refresh = function(scrollFrame)
+			local headers = scrollFrame.columnHeaders
+			local visibleWidth = 0
+			local frameWidth = scrollFrame:GetWidth()
+
+			for i=1,#headers do
+				local visible = not headers[i].enabled or (type(headers[i].enabled)=="function" and headers[i].enabled())
+				local width = scrollFrame.columnWidth[i]
+
+				if visible then
+					scrollFrame.columnFrames[i]:Show()
+				else
+					scrollFrame.columnFrames[i]:Hide()
+					width = 0
+				end
+
+				visibleWidth = visibleWidth + width
+			end
+
+			scrollFrame.columnWidth[2] = scrollFrame.columnWidth[2] + frameWidth - visibleWidth
+			scrollFrame.headerWidth = frameWidth
+
+
+			local x = 0
+
+			for i=1,#headers do
+				local width = scrollFrame.columnFrames[i]:IsShown() and scrollFrame.columnWidth[i] or 0
+
+				scrollFrame.columnFrames[i]:SetPoint("LEFT",scrollFrame, "LEFT", x,0)
+				scrollFrame.columnFrames[i]:SetPoint("RIGHT",scrollFrame, "LEFT", x+width,0)
+
+				x = x + width
+			end
+
+			scrollFrame:RefreshRows()
+		end
 
 		sf.DrawColumns = function(scrollFrame, rowFrame, rowData)
 			scrollFrame:InitColumns(rowFrame)
@@ -741,27 +796,34 @@ do
 			rowFrame.data = rowData
 
 			for i=1,#rowFrame.cols do
-				if rowFrame.rowIndex == 0 then
-					rowFrame.cols[i].text:SetText(headers[i].name)
+				if scrollFrame.columnFrames[i]:IsShown() then
 
-					if headers[i].headerColor then
-						rowFrame.cols[i].text:SetTextColor(unpack(headers[i].headerColor))
+					if rowFrame.rowIndex == 0 then
+						rowFrame.cols[i].text:SetText(headers[i].name)
+
+						if headers[i].headerColor then
+							rowFrame.cols[i].text:SetTextColor(unpack(headers[i].headerColor))
+						else
+							rowFrame.cols[i].text:SetTextColor(1,1,1)
+						end
+
+						if headers[i].headerBgColor then
+							rowFrame.cols[i].bg:SetVertexColor(unpack(headers[i].headerBgColor))
+							rowFrame.cols[i].bg:Show()
+						else
+							rowFrame.cols[i].bg:Hide()
+						end
 					else
-						rowFrame.cols[i].text:SetTextColor(1,1,1)
+						if headers[i].draw and rowData then
+							headers[i].draw(rowFrame,rowFrame.cols[i],rowData)
+						else
+							rowFrame.cols[i].text:SetText((rowData and rowData[headers[i].dataField]) or "")
+						end
 					end
 
-					if headers[i].headerBgColor then
-						rowFrame.cols[i].bg:SetVertexColor(unpack(headers[i].headerBgColor))
-						rowFrame.cols[i].bg:Show()
-					else
-						rowFrame.cols[i].bg:Hide()
-					end
+					rowFrame.cols[i]:Show()
 				else
-					if headers[i].draw and rowData then
-						headers[i].draw(rowFrame,rowFrame.cols[i],rowData)
-					else
-						rowFrame.cols[i].text:SetText((rowData and rowData[headers[i].dataField]) or "")
-					end
+					rowFrame.cols[i]:Hide()
 				end
 			end
 		end
