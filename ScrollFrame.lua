@@ -343,7 +343,7 @@ do
 
 
 
-	local function UpdateData(scrollFrame, data, depth)
+	local function UpdateData(scrollFrame, data, depth, firstCall)
 		if data and data.entries then
 			for i=1,#data.entries do
 				local entry = data.entries[i]
@@ -353,17 +353,19 @@ do
 				if entry.subGroup then
 					for name,reg in pairs(scrollFrame.rowUpdateRegistry) do
 						if not reg.plugin or reg.plugin.enabled then
-							reg.func(scrollFrame, entry)
+							reg.func(scrollFrame, entry, firstCall)
+							firstCall = nil
 						end
 					end
 
 					if entry.subGroup then
-						UpdateData(scrollFrame, entry.subGroup, depth+1)
+						UpdateData(scrollFrame, entry.subGroup, depth+1, firstCall)
 					end
 				else
 					for name,reg in pairs(scrollFrame.rowUpdateRegistry) do
 						if not reg.plugin or reg.plugin.enabled then
-							reg.func(scrollFrame, entry)
+							reg.func(scrollFrame, entry, firstCall)
+							firstCall = nil
 						end
 					end
 				end
@@ -373,7 +375,7 @@ do
 
 	local function RefreshRows(scrollFrame)
 		if #scrollFrame.rowUpdateRegistry>0 then
-			scrollFrame:UpdateData(scrollFrame.data, 0)
+			scrollFrame:UpdateData(scrollFrame.data, 0, true)
 		end
 
 		scrollFrame:SortData(scrollFrame.data)
@@ -739,7 +741,7 @@ do
 
 			if scrollFrame.mouseOverIndex == rowFrame.rowIndex then
 				rowFrame.highlight:SetVertexColor(unpack(highlightMouseOver))
-			elseif entry and entry.skillIndex == GnomeWorks.selectedSkill then
+			elseif entry and entry.index == scrollFrame.selectedIndex then
 				rowFrame.highlight:SetVertexColor(unpack(highlightSelected))
 			else
 				if math.floor(rowFrame.rowIndex/2)*2 == rowFrame.rowIndex then

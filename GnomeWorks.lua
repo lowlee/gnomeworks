@@ -128,7 +128,7 @@ do
 ]]
 		InitServerDBTables(GetRealmName().."-"..UnitFactionGroup("player"), "playerData", "inventoryData", "queueData", "recipeGroupData", "cooldowns")
 
-		GnomeWorks.data.constructionQueue = {}
+
 
 		local itemSource = {}
 		for recipeID, results in pairs(GnomeWorksDB.results) do
@@ -158,8 +158,8 @@ do
 
 
 		GnomeWorks.data.inventoryData["All Recipes"] = {}
-
-
+		GnomeWorks.data.constructionQueue = {}
+		GnomeWorks.data.selectionStack = {}
 
 
 		GnomeWorks.blizzardFrameShow = TradeSkillFrame_Show

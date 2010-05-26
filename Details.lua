@@ -81,6 +81,15 @@ do
 			OnClick = function(cellFrame, button, source)
 				if cellFrame:GetParent().rowIndex==0 then
 					columnControl(cellFrame, button, source)
+				else
+					local entry = cellFrame:GetParent().data
+
+					local itemSource = GnomeWorks.data.itemSource[entry.id]
+
+					if itemSource then
+						GnomeWorks:PushSelection()
+						GnomeWorks:SelectRecipe(itemSource)
+					end
 				end
 			end,
 			OnEnter = 	function(cellFrame)

@@ -5,7 +5,7 @@
 
 
 local function DebugSpam(...)
-	print(...)
+--	print(...)
 end
 
 
@@ -272,6 +272,8 @@ DebugSpam("done parsing skill list")
 
 				self.selectedSkill = index
 
+				self:SkillListDraw(index)
+
 --				self:ShowSkillList()
 
 				self:ScrollToIndex(index)
@@ -286,21 +288,43 @@ DebugSpam("done parsing skill list")
 	end
 
 	local function DoRecipeSelection(recipeID)
-	local player = GnomeWorks.player
+--		local player = GnomeWorks.player
 
-		if recipeID and GnomeWorks.data.recipeDB[recipeID] and GnomeWorks.data.skillIndexLookup[player] then
-			local tradeID = GnomeWorks.data.recipeDB[recipeID].tradeID
-			local skillIndex = GnomeWorks.data.skillIndexLookup[player][recipeID]
+--		if recipeID and GnomeWorksDB.results[recipeID] and GnomeWorks.data.skillIndexLookup[player] then
+--			local tradeID = GnomeWorksDB.tradeIDs[recipeID]
+--			local skillIndex = GnomeWorks.data.skillIndexLookup[player][recipeID]
+
+			local skillIndex
+
+			local enchantString = "enchant:"..recipeID.."|h"
+
+			for i=1,GetNumTradeSkills() do
+				local link = GetTradeSkillRecipeLink(i)
+				local link = GetTradeSkillRecipeLink(i)
+
+				if link and string.find(link, enchantString) then
+
+					skillIndex = i
+					break
+				end
+			end
 
 			if skillIndex then
 				GnomeWorks:SelectSkill(skillIndex)
 			end
-		end
+--		end
 	end
 
 
-	function GnomeWorks:SelectRecipe(tradeID, recipeID)
+	function GnomeWorks:SelectRecipe(recipeID)
+		if not recipeID then return end
+
+		if type(recipeID) == "table" then
+			recipeID = next(recipeID) or recipeID[1]				-- TODO: dropdown for selection?
+		end
+
 		local player = self.player
+		local tradeID = GnomeWorksDB.tradeIDs[recipeID]
 
 		if tradeID ~= self.tradeID then
 			if player == (UnitName("player")) then
@@ -313,9 +337,43 @@ DebugSpam("done parsing skill list")
 		else
 			DoRecipeSelection(recipeID)
 		end
-
-
 	end
+
+
+
+	function GnomeWorks:PushSelection()
+		local newEntry = { player = self.player, tradeID = self.tradeID, skill = self.selectedSkill }
+
+		table.insert(self.data.selectionStack, newEntry)
+	end
+
+
+	function GnomeWorks:PopSelection()
+		local stack = self.data.selectionStack
+		local lastEntry = #stack
+
+		if lastEntry>0 then
+			local player,tradeID,skill = stack[lastEntry].player, stack[lastEntry].tradeID, stack[lastEntry].skill
+--print(player,tradeID,skill)
+			if tradeID ~= self.tradeID then
+				if player == (UnitName("player")) then
+					CastSpellByName((GetSpellInfo(tradeID)))
+				else
+					self:OpenTradeLink(self:GetTradeLink(tradeID, player))
+				end
+
+
+				GnomeWorks:RegisterMessage("GnomeWorksScanComplete", function() GnomeWorks:SelectSkill(skill) end)
+			else
+				self:SelectSkill(skill)
+			end
+
+			stack[lastEntry] = nil
+		end
+	end
+
+
+
 
 
 	function GnomeWorks:ScanTrade()
@@ -607,14 +665,11 @@ DebugSpam("done parsing skill list")
 			GnomeWorks:ScheduleTimer("ScanTrade",5)
 		end
 
-		self.currentPlayer = player
-		self.currentTradeID = tradeID
 
 		GnomeWorks:ScheduleTimer("UpdateMainWindow",.1)
 		GnomeWorks:SendMessage("GnomeWorksScanComplete")
 
 		return skillData, player, tradeID
-	--	AceEvent:TriggerEvent("Skillet_Scan_Complete", profession)
 	end
 
 

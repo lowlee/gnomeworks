@@ -402,7 +402,7 @@ do
 			end,
 			["OnClick"] = function(cellFrame, button, source)
 								if cellFrame:GetParent().rowIndex>0 then
-									local entry = cellFrame.data
+									local entry = cellFrame:GetParent().data
 
 									if entry.subGroup and source == "button" then
 										entry.subGroup.expanded = not entry.subGroup.expanded
@@ -445,8 +445,6 @@ do
 								end
 							end,
 			["draw"] =	function (rowFrame,cellFrame,entry)
-							cellFrame.data = entry
-
 							cellFrame.text:SetPoint("LEFT", cellFrame, "LEFT", entry.depth*8+4+12, 0)
 
 							if entry.subGroup then
@@ -720,11 +718,13 @@ do
 
 
 
-		local function UpdateRowData(scrollFrame,entry)
+		local function UpdateRowData(scrollFrame,entry,firstCall)
+			local player = GnomeWorks.player
+
 			if not entry.subGroup then
-				local bag = GnomeWorks:InventoryRecipeIterations(entry.recipeID, GnomeWorks.player, "craftedBag queue")
-				local vendor = GnomeWorks:InventoryRecipeIterations(entry.recipeID, GnomeWorks.player, "vendor craftedBag queue")
-				local bank = GnomeWorks:InventoryRecipeIterations(entry.recipeID, GnomeWorks.player, "vendor craftedBank queue")
+				local bag = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "craftedBag queue")
+				local vendor = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "vendor craftedBag queue")
+				local bank = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "vendor craftedBank queue")
 				local alts = GnomeWorks:InventoryRecipeIterations(entry.recipeID, "faction", "vendor craftedBank queue")
 
 				entry.craftBag = bag
@@ -761,45 +761,6 @@ do
 
 
 		return skillFrame
-
---[[
-				if currentTradeskill then
-					if (row.cols[4].tradeID ~= currentTradeskill) then
-						return false
-					end
-				else
-					if selectedTradeskill and (row.cols[4].tradeID ~= selectedTradeskill) then
-						return false
-					end
-				end
-
-
-				if selectedAge and ((time() - row.cols[5].value)/(60*60*24) > selectedAge) then
-					return false
-				end
-
-				if not selectedPlayers["OFFLINE"] then
-					if not playerLocation[row.cols[1].value] or string.find(playerLocation[row.cols[1].value],OFFLINE) then
-						return false
-					end
-				end
-
-				if not selectedPlayers["STRANGERS"] then
-					if not guildList[row.cols[1].value] and not friendList[row.cols[1].value] then
-						return false
-					end
-				end
-	--DEFAULT_CHAT_FRAME:AddMessage(type(selectedLevel).." "..tostring(selectedLevel))
-
-				if selectedLevel and tonumber(row.cols[3].value) < selectedLevel then
-					return false
-				end
-
-				return true
-			end)
-		end
-]]
-
 	end
 
 
@@ -836,8 +797,8 @@ do
 
 
 	function GnomeWorks:ShowSkillList()
-		local player = self.currentPlayer
-		local tradeID = self.currentTradeID
+		local player = self.player
+		local tradeID = self.tradeID
 
 		if player and tradeID then
 			local key = player..":"..tradeID
@@ -850,6 +811,11 @@ do
 		end
 	end
 
+
+	function GnomeWorks:SkillListDraw(selected)
+		sf.selectedIndex = selected
+		sf:Draw()
+	end
 
 	function GnomeWorks:ShowStatus()
 		local rank, maxRank = self:GetTradeSkillRank()
@@ -1002,9 +968,15 @@ do
 		end
 
 
+		local function PopRecipe()
+			GnomeWorks:PopSelection()
+		end
+
+
 		local buttons = {
 			{ label = "Add To Queue",  operation = AddToQueue, count = 1 },
 			{ label = "Queue All", operation = AddToQueue },
+			{ label = "Back", operation = PopRecipe },
 		}
 		local position = 0
 

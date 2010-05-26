@@ -276,6 +276,13 @@ do
 	end
 
 
+	function GnomeWorks:ReserveItemForQueue(player, itemID, count)
+		local inv = self.data.inventoryData[player]["queue"]
+
+		inv[itemID] = (inv[itemID] or 0) - count					-- queue "inventory" is negative meaning that it requires these items
+	end
+
+
 	function GnomeWorks:GetInventoryCount(itemID, player, containerList)
 		if player ~= "faction" then
 			local inventoryData = self.data.inventoryData[player]
