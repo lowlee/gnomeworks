@@ -3,6 +3,8 @@
 local pluginToken
 
 local function RegisterWithLSW()
+	if not LSW then return end
+
 	local valueColumn
 	local costColumn
 	local scrollFrame
