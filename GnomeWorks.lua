@@ -18,6 +18,25 @@ LibStub("AceTimer-3.0"):Embed(GnomeWorks)
 
 -- handle load sequence
 do
+	-- To fix Blizzard's bug caused by the new "self:SetFrameLevel(2);"
+	local function FixFrameLevel(level, ...)
+		for i = 1, select("#", ...) do
+			local button = select(i, ...)
+			button:SetFrameLevel(level)
+		end
+	end
+	local function FixMenuFrameLevels()
+		local f = DropDownList1
+		local i = 1
+		while f do
+			FixFrameLevel(f:GetFrameLevel() + 2, f:GetChildren())
+			i = i + 1
+			f = _G["DropDownList"..i]
+		end
+	end
+
+	-- To fix Blizzard's bug caused by the new "self:SetFrameLevel(2);"
+	hooksecurefunc("UIDropDownMenu_CreateFrames", FixMenuFrameLevels)
 
 
 	function GnomeWorks:ConvertRecipeDB()
@@ -78,6 +97,15 @@ do
 	function GnomeWorks:OnLoad()
 		print("|cff80ff80GnomeWorks (r"..VERSION..") Initializing")
 
+		LoadAddOn("Blizzard_TradeSkillUI")
+
+		GnomeWorks.blizzardFrameShow = TradeSkillFrame_Show
+
+		TradeSkillFrame_Show = function()
+		end
+
+
+
 		if LibStub then
 			self.libPT = LibStub:GetLibrary("LibPeriodicTable-3.1", true)
 		end
@@ -99,10 +127,8 @@ do
 
 
 
-		local function InitServerDBTables(server, var, ...)
+		local function InitServerDBTables(server, player, var, ...)
 			if var then
-				local player = UnitName("player")
-
 				if not GnomeWorksDB.serverData[server] then
 					GnomeWorksDB.serverData[server] = { [var] = {}}
 				else
@@ -117,7 +143,7 @@ do
 
 				GnomeWorks.data[var] = GnomeWorksDB.serverData[server][var]
 
-				InitServerDBTables(server, ...)
+				InitServerDBTables(server, player, ...)
 			end
 		end
 
@@ -126,13 +152,17 @@ do
 		print("reagents mem usage = ",math.floor(memUsage(GnomeWorksDB.reagents)/1024).."kb")
 		print("tradeIDs mem usage = ",math.floor(memUsage(GnomeWorksDB.tradeIDs)/1024).."kb")
 ]]
-		InitServerDBTables(GetRealmName().."-"..UnitFactionGroup("player"), "playerData", "inventoryData", "queueData", "recipeGroupData", "cooldowns")
-
+		InitServerDBTables(GetRealmName().."-"..UnitFactionGroup("player"), UnitName("player"), "playerData", "inventoryData", "queueData", "recipeGroupData", "cooldowns")
+		InitServerDBTables(GetRealmName().."-"..UnitFactionGroup("player"), "All Recipes", "playerData", "inventoryData", "queueData", "recipeGroupData", "cooldowns")
 
 
 		local itemSource = {}
+		GnomeWorks.data.itemSource = itemSource
+
 		for recipeID, results in pairs(GnomeWorksDB.results) do
 			for itemID, numMade in pairs(results) do
+--				GnomeWorks:AddToItemCache(itemID, recipeID, numMade)
+
 				if itemSource[itemID] then
 					itemSource[itemID][recipeID] = numMade
 				else
@@ -140,10 +170,12 @@ do
 				end
 			end
 		end
-		GnomeWorks.data.itemSource = itemSource
+
 --		print("itemSource mem usage = ",math.floor(memUsage(itemSource)/1024).."kb")
 
 		local reagentUsage = {}
+		GnomeWorks.data.reagentUsage = reagentUsage
+
 		for recipeID, reagents in pairs(GnomeWorksDB.reagents) do
 			for itemID, numNeeded in pairs(reagents) do
 				if reagentUsage[itemID] then
@@ -153,20 +185,27 @@ do
 				end
 			end
 		end
-		GnomeWorks.data.reagentUsage = reagentUsage
+
 --		print("reagetUsage mem usage = ",math.floor(memUsage(reagentUsage)/1024).."kb")
 
 
-		GnomeWorks.data.inventoryData["All Recipes"] = {}
+--		GnomeWorks.data.inventoryData["All Recipes"] = {}
 		GnomeWorks.data.constructionQueue = {}
 		GnomeWorks.data.selectionStack = {}
 
+		GnomeWorks:ConstructPseudoTrades("All Recipes")
 
-		GnomeWorks.blizzardFrameShow = TradeSkillFrame_Show
 
---		TradeSkillFrame_Show = function()
---		end
 
+		GnomeWorks:RegisterEvent("MERCHANT_UPDATE")
+		GnomeWorks:RegisterEvent("MERCHANT_SHOW")
+
+
+		GnomeWorks:RegisterEvent("BAG_UPDATE")
+	end
+
+
+	function GnomeWorks:OnTradeSkillShow()
 		GnomeWorks:ParseSkillList()
 
 		GnomeWorks.MainWindow = GnomeWorks:CreateMainWindow()
@@ -187,20 +226,19 @@ do
 		GnomeWorks:RegisterEvent("CHAT_MSG_SKILL")
 
 
-		GnomeWorks:RegisterEvent("MERCHANT_UPDATE")
-		GnomeWorks:RegisterEvent("MERCHANT_SHOW")
 
+		GnomeWorks:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", "SpellCastCompleted")
 
-		GnomeWorks:RegisterEvent("BAG_UPDATE")
+		GnomeWorks:RegisterEvent("UNIT_SPELLCAST_FAILED", "SpellCastFailed")
+		GnomeWorks:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED", "SpellCastFailed")
+		GnomeWorks:RegisterEvent("UNIT_SPELLCAST_STOPPED", "SpellCastFailed")
 
 
 
 		for name,plugin in pairs(GnomeWorks.plugins) do
-print("initializing",name)
+--print("initializing",name)
 			plugin.initialize()
 		end
-
-
 
 
 		hooksecurefunc("SetItemRef", function(s,link,button)
@@ -210,7 +248,6 @@ print("initializing",name)
 		end)
 
 		collectgarbage("collect")
-
 
 		if not IsAddOnLoaded("AddOnLoader") then
 			GnomeWorks:TRADE_SKILL_SHOW()
@@ -228,19 +265,28 @@ print("initializing",name)
 --	GetNumSkillLines()
 ]]
 
+
 	if not IsAddOnLoaded("AddOnLoader") then
+		GnomeWorks:RegisterEvent("ADDON_LOADED", function(event, name)
+			if name == "GnomeWorks" then
+				GnomeWorks:UnregisterEvent(event)
+				GnomeWorks:ScheduleTimer("OnLoad",.01)
+			end
+		end )
+
 		GnomeWorks:RegisterEvent("TRADE_SKILL_SHOW", function()
 			GnomeWorks:UnregisterEvent("TRADE_SKILL_SHOW")
-			GnomeWorks:ScheduleTimer("OnLoad",.01)
+			GnomeWorks:ScheduleTimer("OnTradeSkillShow",.01)
 --			GnomeWorks:OnLoad()
 		end )
 	else
-		GnomeWorks:RegisterEvent("ADDON_LOADED", function(self, name)
+		GnomeWorks:RegisterEvent("ADDON_LOADED", function(event, name)
 --			print("gnomeworks detected the loading of "..tostring(name))
 			if name == "GnomeWorks" then
 --				GnomeWorks:ScheduleTimer("OnLoad",1)
 				GnomeWorks:OnLoad()
-				GnomeWorks:UnregisterEvent("ADDON_LOADED")
+				GnomeWorks:OnTradeSkillShow()
+				GnomeWorks:UnregisterEvent(event)
 			end
 		end)
 	end

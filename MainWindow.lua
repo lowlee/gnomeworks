@@ -5,6 +5,9 @@
 local VERSION = ("$Revision$"):match("%d+")
 
 
+local LARGE_NUMBER = 1000000
+
+
 do
 	local frame
 	local sf
@@ -33,11 +36,14 @@ do
 	local colorFilteringEnabled = { 1,1,.0, .25 }
 
 
+	local inventoryColors = {
+		bag = "|cffffff80",
+		vendor = "|cff80ff80",
+		bank =  "|cffffa050",
+		alt = "|cffff80ff",
+	}
 
-	local cbag = "|cffffff80"
-	local cvendor = "|cff80ff80"
-	local cbank =  "|cffffa050"
-	local calt = "|cffff80ff"
+
 
 
 	local selectedRows = {}
@@ -77,6 +83,20 @@ do
 		3273,           -- first aid
 
 		53428,			-- runeforging
+
+
+		13262,			-- disenchant
+		51005,			-- milling
+		31252,			-- prospecting
+	}
+
+
+	local unlinkableTrades = {
+		[2656] = true,           -- smelting (from mining)
+		[53428] = true,			-- runeforging
+		[51005] = true,			-- milling
+		[13262] = true,			-- disenchant
+		[31252] = true,			-- prospecting
 	}
 
 
@@ -162,22 +182,97 @@ do
 	end
 
 
-	local craftFilterMenu = {
+
+	local craftSourceMenu = {
 	}
 
+	local craftFilterMenu
+
+	craftFilterMenu = {
+		{
+			text = "Filter by Inventory: "..inventoryColors.alt.."alts",
+			menuList = craftSourceMenu,
+			hasArrow = true,
+			filterIndex = 4,
+			func = function()
+				local parameters = craftSourceMenu.parameters
+				local index = craftFilterMenu[1].filterIndex
+
+				craftSourceMenu[index].func(nil, craftSourceMenu[index].arg1)
+				craftFilterMenu[1].checked = parameters[index].enabled
+			end,
+			checked = false,
+		},
+	}
+
+
+	local function adjustCraftFilterSource(parameters, index)
+		radioButton(parameters, index)
+
+		craftFilterMenu[1].checked = parameters[index].enabled
+		craftFilterMenu[1].filterIndex = index
+		craftFilterMenu[1].text = "Filter by Inventory: "..parameters[index].label
+	end
+
+
 	local craftFilterParameters = {
-		haveMaterials = {
-			label = "Have Materials",
+		{
+			label = inventoryColors.bag.."bag",
+			enabled = false,
+			func = function(entry)
+				if entry and entry.craftBag and entry.craftBag > 0 then
+					return false
+				end
+
+				return true
+			end,
+			notCheckable = true,
+			checked = false,
+			OnClick = adjustCraftFilterSource,
+		},
+		{
+			label = inventoryColors.vendor.."vendor",
+			func = function(entry)
+				if entry and entry.craftVendor and entry.craftVendor > 0 then
+					return false
+				end
+
+				return true
+			end,
+			notCheckable = true,
+			checked = false,
+			OnClick = adjustCraftFilterSource,
+		},
+		{
+			label = inventoryColors.bank.."bank",
+			enabled = false,
+			func = function(entry)
+				if entry and entry.craftBank and entry.craftBank > 0 then
+					return false
+				end
+
+				return true
+			end,
+			notCheckable = true,
+			checked = false,
+			OnClick = adjustCraftFilterSource,
+		},
+		{
+			label = inventoryColors.alt.."alts",
 			enabled = false,
 			func = function(entry)
 				if entry and entry.craftAlt and entry.craftAlt > 0 then
 					return false
-				else
-					return true
 				end
+
+				return true
 			end,
+			notCheckable = true,
+			checked = false,
+			OnClick = adjustCraftFilterSource,
 		},
 	}
+
 
 
 
@@ -349,9 +444,6 @@ do
 
 							cellFrame.text:SetFormattedText("%s",entry.itemLevel or "")
 							cellFrame.text:SetTextColor(cr,cg,cb)
-
---								local _,skillType,craftable = GetTradeSkillInfo(i)
-
 						end,
 			OnClick = function(cellFrame, button, source)
 							if cellFrame:GetParent().rowIndex == 0 then
@@ -459,10 +551,10 @@ do
 								cellFrame.text:SetFormattedText("%s (%d Recipes)",entry.name,#entry.subGroup.entries)
 								cellFrame.button:Show()
 							else
-								local itemLink = GetTradeSkillItemLink(entry.index)
-								local spellName = GetSpellInfo(entry.recipeID)
+								local itemLink = GnomeWorks:GetTradeSkillItemLink(entry.index)
+								local spellName = GnomeWorks:GetRecipeName(entry.recipeID)
 
-								cellFrame.text:SetFormattedText("|T%s:16:16:0:-2|t %s", GetTradeSkillIcon(entry.index) or "", spellName)
+								cellFrame.text:SetFormattedText("|T%s:16:16:0:-2|t %s", GnomeWorks:GetTradeSkillIcon(entry.index) or "", spellName)
 
 								cellFrame.button:Hide()
 							end
@@ -537,7 +629,7 @@ do
 
 							if GnomeWorksDB.vendorOnly[entry.recipeID] then
 								if entry.craftBag and entry.craftBag ~= 0 then
-									cellFrame.text:SetFormattedText("%s%d|r/\226\136\158",cbag,entry.craftBag)
+									cellFrame.text:SetFormattedText("%s%d|r/\226\136\158",inventoryColors.bag,entry.craftBag)
 								else
 									cellFrame.text:SetText("\226\136\158")
 								end
@@ -548,21 +640,21 @@ do
 									local display = ""
 
 									if bag > 0 then
-										display = string.format("%s%d|r",cbag,bag)
+										display = string.format("%s%d|r",inventoryColors.bag,bag)
 									elseif vendor > 0 then
-										display = string.format("%s%d|r",cvendor,vendor)
+										display = string.format("%s%d|r",inventoryColors.vendor,vendor)
 									elseif bank > 0 then
-										display = string.format("%s%d|r",cbank,bank)
+										display = string.format("%s%d|r",inventoryColors.bank,bank)
 									elseif alt > 0 then
-										display = string.format("%s%d|r",calt,alt)
+										display = string.format("%s%d|r",inventoryColors.alt,alt)
 									end
 
 									if alt > bank and bank > 0 then
-										display = string.format("%s/%s%s", display, calt, alt)
+										display = string.format("%s/%s%s", display, inventoryColors.alt, alt)
 									elseif bank > vendor and vendor > 0 then
-										display = string.format("%s/%s%s", display, cbank, bank)
+										display = string.format("%s/%s%s", display, inventoryColors.bank, bank)
 									elseif vendor > bag and bag > 0 then
-										display = string.format("%s/%s%s", display, cvendor, vendor)
+										display = string.format("%s/%s%s", display, inventoryColors.vendor, vendor)
 									end
 
 
@@ -570,8 +662,6 @@ do
 								else
 									cellFrame.text:SetText("")
 								end
-
---								local _,skillType,craftable = GetTradeSkillInfo(i)
 							end
 						end,
 
@@ -638,13 +728,13 @@ do
 
 	GnomeWorks:CreateFilterMenu(levelFilterParameters, levelFilterMenu, columnHeaders[1])
 	GnomeWorks:CreateFilterMenu(recipeLevelParameters, recipeLevelMenu, columnHeaders[2])
-	GnomeWorks:CreateFilterMenu(craftFilterParameters, craftFilterMenu, columnHeaders[3])
+	GnomeWorks:CreateFilterMenu(craftFilterParameters, craftSourceMenu, columnHeaders[3])
 
 
 
 	local function ResizeMainWindow()
 		if sf then
-			if not GetTradeSkillSelectionIndex() then
+			if not GnomeWorks.selectedSkill then
 				GnomeWorks.detailFrame:Hide()
 				GnomeWorks.reagentFrame:Hide()
 			end
@@ -733,7 +823,7 @@ do
 				entry.craftAlt = alts
 
 				if not entry.itemColor then
-					local itemLink = GetTradeSkillItemLink(entry.index)
+					local itemLink = GnomeWorks:GetTradeSkillItemLink(entry.index)
 
 					local _,itemRarity,reqLevel
 					local itemColor
@@ -764,22 +854,23 @@ do
 	end
 
 
+	function GnomeWorks:ScanComplete()
+		local index = self.selectedSkill
+
+		if index then
+			self:ShowDetails(index)
+			self:ShowReagents(index)
+		end
+
+		self:ShowQueueList()
+
+		ResizeMainWindow()
+	end
+
+
 	function GnomeWorks:DoTradeSkillUpdate()
 		if frame:IsVisible() then
 			self:ScanTrade()
-
-			local index = GetTradeSkillSelectionIndex()
-
-			if index then
-				self:ShowDetails(index)
-				self:ShowReagents(index)
-
-				self.selectedSkill = index
-			end
-
-			self:ShowQueueList()
-
-			ResizeMainWindow()
 		end
 	end
 
@@ -813,7 +904,8 @@ do
 
 
 	function GnomeWorks:SkillListDraw(selected)
-		sf.selectedIndex = selected
+		sf.selectedIndex = selected or self.selectedSkill
+		self.selectedSkill = selected
 		sf:Draw()
 	end
 
@@ -824,7 +916,7 @@ do
 		self.levelStatusBar:Show()
 
 
-		self.playerNameFrame:SetFormattedText("%s - %s", self.player, (GetSpellInfo(self.tradeID)))
+		self.playerNameFrame:SetFormattedText("%s - %s", self.player or "??", self:GetTradeName(self.tradeID) or "??")
 	end
 
 
@@ -873,32 +965,30 @@ do
 	end
 
 
-
-	local function SelectTradeSkill(menuFrame, player, tradeLink)
-		ToggleDropDownMenu(1, nil, playerSelectMenu, menuFrame, menuFrame:GetWidth(), 0)
-		local tradeString = string.match(tradeLink, "(trade:%d+:%d+:%d+:[0-9a-fA-F]+:[A-Za-z0-9+/]+)")
-
-		if (UnitName("player")) == player then
-			local tradeName = GetSpellInfo(string.match(tradeString, "trade:(%d+)"))
-
-			if ((GetTradeSkillLine() == "Mining" and "Smelting") or GetTradeSkillLine()) ~= tradeName or IsTradeSkillLinked() then
-				CastSpellByName(tradeName)
-			end
-		else
-			SetItemRef(tradeString,tradeLink,"LeftButton")
-		end
-	end
-
-
 	local SelectTradeLink do
+		local function SelectTradeSkill(menuFrame, player, tradeLink)
+			ToggleDropDownMenu(1, nil, playerSelectMenu, menuFrame, menuFrame:GetWidth(), 0)
+			local tradeString = string.match(tradeLink, "(trade:%d+:%d+:%d+:[0-9a-fA-F]+:[A-Za-z0-9+/]+)")
+
+			if (UnitName("player")) == player then
+				local tradeName = GetSpellInfo(string.match(tradeString, "trade:(%d+)"))
+
+				if ((GnomeWorks:GetTradeSkillLine() == "Mining" and "Smelting") or GnomeWorks:GetTradeSkillLine()) ~= tradeName or GnomeWorks:IsTradeSkillLinked() then
+					CastSpellByName(tradeName)
+				end
+			else
+				GnomeWorks:OpenTradeLink(tradeLink,player)
+			end
+		end
+
 		local function InitMenu(menuFrame, level)
 			if (level == 1) then  -- character names
 				local title = {}
 				local playerMenu = {}
 
 				title.text = "Select Player and Tradeskill"
-	--				title.isTitle = true
-	--				title.notClickable = true
+--				title.isTitle = true
+--				title.notClickable = true
 				title.fontObject = "GameFontNormal"
 
 
@@ -926,7 +1016,7 @@ do
 				for index, tradeID in ipairs(tradeIDList) do
 					if links[tradeID] then
 						local rank, maxRank = string.match(links[tradeID], "trade:%d+:(%d+):(%d+)")
-						local spellName, spellLink, spellIcon = GetSpellInfo(tradeID)
+						local spellName, spellLink, spellIcon = GnomeWorks:GetTradeInfo(tradeID)
 
 						skillButton.text = string.format("%s |cff00ff00[%s/%s]|r", spellName, rank, maxRank)
 						skillButton.value = tradeID
@@ -939,6 +1029,7 @@ do
 
 						skillButton.checked = (tradeID == GnomeWorks.tradeID and UIDROPDOWNMENU_MENU_VALUE == GnomeWorks.player)
 
+						skillButton.disabled = false
 
 						UIDropDownMenu_AddButton(skillButton, level)
 					end
@@ -948,7 +1039,7 @@ do
 
 		function SelectTradeLink(frame)
 			if not playerSelectMenu then
-				playerSelectMenu = CreateFrame("Frame", "GWPlayerSelectMenu", getglobal("UIParent"), "UIDropDownMenuTemplate")
+				playerSelectMenu = CreateFrame("Frame", "GWPlayerSelectMenu", UIParent, "UIDropDownMenuTemplate")
 			end
 
 			UIDropDownMenu_Initialize(playerSelectMenu, InitMenu, "MENU")
@@ -958,13 +1049,40 @@ do
 
 
 	function GnomeWorks:CreateControlFrame(frame)
-		local function AddToQueue(buttonFrame)
---			DoTradeSkill(GetTradeSkillSelectionIndex())
-			local recipeLink = GetTradeSkillRecipeLink(GnomeWorks.selectedSkill)
+		local function AddToQueue(count)
+			local numItems = count
+
+			local recipeLink = self:GetTradeSkillRecipeLink(GnomeWorks.selectedSkill)
 
 			local recipeID = tonumber(string.match(recipeLink, "enchant:(%d+)"))
 
-			GnomeWorks:AddToQueue(GnomeWorks.player, GnomeWorks.tradeID, recipeID, 1)
+			if not numItems then
+				local entry = sf.dataMap[GnomeWorks.selectedSkill]
+
+				local _, _, _, _, _, _, _, itemStackCount = GetItemInfo(next(GnomeWorksDB.results[recipeID]))
+
+				if entry.craftAlt < 1 then
+					numItems = itemStackCount
+				else
+					if entry.craftBag > 1 then
+						numItems = entry.craftBag
+					elseif entry.craftVendor > 1 then
+						numItems = entry.craftVendor
+					elseif entry.craftBank > 1 then
+						numItems = entry.craftBank
+					else
+						numItems = entry.craftAlt
+					end
+				end
+
+
+
+				if numItems == LARGE_NUMBER then
+					numItems = itemStackCount
+				end
+			end
+
+			GnomeWorks:AddToQueue(GnomeWorks.player, GnomeWorks.tradeID, recipeID, numItems)
 		end
 
 
@@ -976,7 +1094,7 @@ do
 		local buttons = {
 			{ label = "Add To Queue",  operation = AddToQueue, count = 1 },
 			{ label = "Queue All", operation = AddToQueue },
-			{ label = "Back", operation = PopRecipe },
+--			{ label = "Back", operation = PopRecipe },
 		}
 		local position = 0
 
@@ -999,7 +1117,7 @@ do
 			newButton:SetText(config.label)
 
 			newButton.count = config.count
-			newButton:SetScript("OnClick", config.operation)
+			newButton:SetScript("OnClick", function() config.operation(config.count) end )
 
 			position = position + 100
 		end
@@ -1016,6 +1134,9 @@ do
 
 		frame:SetMinResize(500,400)
 
+		local rightSideWidth = 300
+
+
 		self.detailFrame = self:CreateDetailFrame(frame)
 		self.reagentFrame = self:CreateReagentFrame(frame)
 
@@ -1025,10 +1146,18 @@ do
 
 		local tradeButtonFrame = CreateFrame("Frame", nil, frame)
 		tradeButtonFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20,-48)
-		tradeButtonFrame:SetWidth(240)
+		tradeButtonFrame:SetWidth(rightSideWidth)
 		tradeButtonFrame:SetHeight(18)
 
+
+
 		self:CreateTradeButtons(tradeIDList, tradeButtonFrame)
+--[[
+		local t = tradeButtonFrame:CreateTexture(nil,"OVERLAY")
+		t:SetTexture(1,1,1,.5)
+		t:SetPoint("TOPLEFT",-5,5)
+		t:SetPoint("BOTTOMRIGHT",5,-5)
+]]
 
 --		self.tradeButtonFrame:ClearAllPoints()
 
@@ -1054,7 +1183,7 @@ do
 
 		searchBox:SetPoint("TOPLEFT", frame, 22,-50)
 		searchBox:SetHeight(16)
-		searchBox:SetPoint("RIGHT", frame, -300,0)
+		searchBox:SetPoint("RIGHT", tradeButtonFrame, "LEFT", -30,0)
 
 		searchBox:SetScript("OnEnterPressed", EditBox_ClearFocus)
 		searchBox:SetScript("OnEscapePressed", EditBox_ClearFocus)
@@ -1090,10 +1219,13 @@ do
 				insets = { left = 12, right = 12, top = 12, bottom = 12 }
 			}
 
+
+
 		local level = CreateFrame("StatusBar", nil, frame)
 
 		level:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-20,-34)
-		level:SetWidth(240)
+--		level:SetWidth(rightSideWidth)
+		level:SetPoint("LEFT",tradeButtonFrame)
 		level:SetHeight(8)
 
 --		level:SetMinMaxValues(1,10)
@@ -1125,7 +1257,8 @@ do
 
 		local playerName = CreateFrame("Button", nil, frame)
 
-		playerName:SetWidth(240)
+		playerName:SetPoint("LEFT",tradeButtonFrame)
+--		playerName:SetWidth(rightSideWidth)
 		playerName:SetHeight(16)
 		playerName:SetText("UNKNOWN")
 		playerName:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-20,-15)
@@ -1150,6 +1283,15 @@ do
 
 
 		textFilter = nil
+
+
+		table.insert(UISpecialFrames, "GnomeWorksFrame")
+
+		frame:SetScript("OnShow", function() PlaySound("igCharacterInfoOpen") end)
+		frame:SetScript("OnHide", function() CloseTradeSkill() PlaySound("igCharacterInfoClose") end)
+
+
+		self:RegisterMessage("GnomeWorksScanComplete", "ScanComplete")
 
 		return frame
 	end

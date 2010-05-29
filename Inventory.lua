@@ -55,15 +55,16 @@ do
 					local name, texture, price, quantity, numAvailable, isUsable, extendedCost = GetMerchantItemInfo(i)
 
 					if numAvailable == -1 then
-						local honorPoints, arenaPoints, itemCount = GetMerchantItemCostInfo(index);
+						local honorPoints, arenaPoints, itemCount = GetMerchantItemCostInfo(i)
 
-						if not itemCount or itemCount == 0 then
+						if not extendedCost then
 							print("|c008080ffGnomeWorks recording vendor item: ",link)
 							GnomeWorksDB.vendorItems[itemID] = true
-						else
+						elseif arenaPoints == 0 and honorPoints == 0 then
 							local reagents = {}
 							GnomeWorksDB.results[spoofedRecipeID] = { [itemID] = quantity }
 							GnomeWorksDB.names[spoofedRecipeID] = "Purchase "..GetItemInfo(itemID)
+							GnomeWorksDB.tradeIDs[spoofedRecipeID] = 100001
 
 							for n=1,itemCount do
 								local itemTexture, itemValue, itemLink = GetMerchantItemCostItem(i, n)
@@ -71,11 +72,17 @@ do
 								local costItemID = tonumber(string.match(itemLink,"item:(%d+)"))
 
 								reagents[costItemID] = itemValue
+
+								GnomeWorks:AddToReagentCache(costItemID, spoofedRecipeID, itemValue)
 							end
 
-							GnomeWorksDB.results[spoofedRecipeID] = reagents
+							GnomeWorksDB.reagents[spoofedRecipeID] = reagents
 
-							print("|c008080ffGnomeWorks recording vendor converstion for item: ",link)
+
+							GnomeWorks:AddToItemCache(itemID, spoofedRecipeID, quantity)
+
+
+							print("|c008080ffGnomeWorks recording vendor conversion for item: ",link)
 						end
 					end
 				end
@@ -121,8 +128,11 @@ do
 		local numReagentsCraftable = 0
 
 		if recipeSource then
-			for childRecipeID in pairs(recipeSource) do
-				numReagentsCraftable = numReagentsCraftable + CalculateRecipeCrafting(craftabilityTable, GnomeWorksDB.reagents[childRecipeID], player, containerList) * GnomeWorksDB.results[childRecipeID][reagentID]
+			for childRecipeID, count in pairs(recipeSource) do
+				if count >= .1 then
+--print("Child Recipe", reagentID, childRecipeID)
+					numReagentsCraftable = numReagentsCraftable + CalculateRecipeCrafting(craftabilityTable, GnomeWorksDB.reagents[childRecipeID], player, containerList) * count
+				end
 			end
 		end
 
@@ -409,8 +419,10 @@ do
 		local elapsed = GetTime()-scanTime
 
 		if elapsed > .5 then
-			DebugSpam("|cff0000ffWARNING: GnomeWorks Inventory Scan took ",math.floor(elapsed*100)/100," seconds")
+			DebugSpam("|cffff0000WARNING: GnomeWorks Inventory Scan took ",math.floor(elapsed*100)/100," seconds")
 		end
+
+		GnomeWorks:SendMessage("GnomeWorksInventoryScanComplete")
 	end
 
 end

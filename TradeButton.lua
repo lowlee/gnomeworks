@@ -21,9 +21,9 @@ do
 
 	local function OnClick(frame, button)
 		if frame.tradeLink then
-			local tradeString = string.match(frame.tradeLink, "(trade:%d+:%d+:%d+:[0-9A-F]+:[0-9A-Za-z+/]+)")
-
-			SetItemRef(tradeString,frame.tradeLink, button)
+--			local tradeString = string.match(frame.tradeLink, "(trade:%d+:%d+:%d+:[0-9A-F]+:[0-9A-Za-z+/]+)")
+--			SetItemRef(tradeString,frame.tradeLink, button)
+			GnomeWorks:OpenTradeLink(frame.tradeLink, GnomeWorks.player)
 		else
 			if ((GetTradeSkillLine() == "Mining" and "Smelting") or GetTradeSkillLine()) ~= frame.tradeName or IsTradeSkillLinked() then
 				CastSpellByName(frame.tradeName)
@@ -57,10 +57,11 @@ do
 
 		for i=1,#tradeSkillList,1 do					-- iterate thru all skills in defined order for neatness (professions, secondary, class skills)
 			local tradeID = tradeSkillList[i]
-			local spellName = GetSpellInfo(tradeID)
+			local spellName = self:GetTradeName(tradeID)
 			local tradeLink
 
-			local spellName, _, spellIcon = GetSpellInfo(tradeID)
+--			local spellName, _, spellIcon = GetSpellInfo(tradeID)
+			local spellIcon = GnomeWorks:GetTradeIcon(tradeID)
 
 			local button = CreateFrame("CheckButton", nil, frame, "ActionButtonTemplate")
 
@@ -125,7 +126,16 @@ do
 				end
 			end
 
-			frame:SetWidth(position-spacing)
+
+			local totalWidth = position-spacing
+
+
+			frame:SetWidth(totalWidth)
+
+			local parentFrame = frame:GetParent()
+			local scale = parentFrame:GetHeight()/buttonSize
+
+			parentFrame:SetWidth(math.max(totalWidth*scale,200))
 		end
 	end
 end

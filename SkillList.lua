@@ -47,15 +47,28 @@ do
 		3273,           -- first aid
 
 		53428,			-- runeforging
+
+
+		51005,			-- milling
+		13262,			-- disenchant
+		31252,			-- prospecting
 	}
 
 --	local tradeIDList = { 2259, 2018, 7411, 4036, 45357, 25229, 2108, 3908,  2550, 3273 }
+
+	local unlinkableTrades = {
+		[2656] = true,           -- smelting (from mining)
+		[53428] = true,			-- runeforging
+		[51005] = true,			-- milling
+		[13262] = true,			-- disenchant
+		[31252] = true,			-- prospecting
+	}
 
 
 	local tradeIDByName = {}
 
 	for index, id in pairs(tradeIDList) do
-		local tradeName = GetSpellInfo(id)
+		local tradeName = GnomeWorks:GetTradeName(id)
 		tradeIDByName[tradeName] = id
 	end
 
@@ -82,88 +95,90 @@ do
 	end
 
 
-	local function AddToDataTable(dataTable, itemID, recipeID, num)
-		if recipeID and itemID then
-			if dataTable[itemID] then
-				dataTable[itemID][recipeID] = num
+	local function AddToDataTable(dataTable, a, b, num)
+		if a and b then
+			if dataTable[a] then
+				dataTable[a][b] = num
 			else
-				dataTable[itemID] = { [recipeID] = num }
+				dataTable[a] = { [b] = num }
 			end
+
+			return dataTable[a]
 		end
 	end
 
 
-	local function AddToItemCache(itemID, recipeID, numMade)
---[[
+	function GnomeWorks:AddToItemCache(itemID, recipeID, numMade)
+
+		if false and not GnomeWorksDB.results[-itemID] then
+
 			local deTable = LSW.getDisenchantResults(itemID)
 
-			if deTable then
-				itemCache[itemID].deTable = deTable
-
-				for reagentID, count in pairs(deTable) do
-					local cache = AddToItemCache(reagentID)
-
-					if not cache.craftSource then
-						cache.craftSource = {}
-					end
-
-					cache.craftSource[-itemID] = count
+				if deTable then
+	--			itemCache[itemID].deTable = deTable
 
 
-					recipeCache[-itemID] = {}
+				GnomeWorksDB.tradeIDs[-itemID] = 13262			-- Disenchant
+				GnomeWorksDB.names[-itemID] = "Disenchant "..(GetItemInfo(itemID)) or "item:"..itemID
+				GnomeWorksDB.results[-itemID] = deTable
 
-					recipeCache[-itemID].name = "Disenchant "..(GetItemInfo(itemID) or "item:"..itemID)
+				for resultID, count in pairs(deTable) do
+					self:AddToItemCache(resultID, -itemID, count)
 
-					recipeCache[-itemID].craftResults = deTable
-
-					if recipeCache[recipeID] then										-- if item is craftable, copy the reagents to the de reagents otherwise just stuff in the itemID as the sole reagent
-						recipeCache[-itemID].reagents = recipeCache[recipeID].reagents
-					else
-						recipeCache[-itemID].reagents = { [itemID] = 1 }
-					end
+					GnomeWorksDB.reagents[-itemID] = GnomeWorksDB.reagents[recipeID] or { [itemID] = 1 }
 				end
 
-				local itemName, itemLink, itemRarity, itemLevel  = GetItemInfo(itemID)
-				local reqLevel = 1
+			end
+--[[
+			local itemName, itemLink, itemRarity, itemLevel  = GetItemInfo(itemID)
+			local reqLevel = 1
 
-				if itemLevel >= 21 and itemLevel <= 60 then
-					reqLevel = (math.ceil(itemLevel/5)-4) * 25
+			if itemLevel >= 21 and itemLevel <= 60 then
+				reqLevel = (math.ceil(itemLevel/5)-4) * 25
+			else
+				if itemRarity < 5 then
+					if itemLevel < 100 then
+						reqLevel = 225
+					elseif itemLevel < 130 then
+						reqLevel = 275
+					elseif itemLevel < 154 then
+						reqLevel = 325
+					else
+						reqLevel = 350
+					end
 				else
-					if itemRarity < 5 then
-						if itemLevel < 100 then
-							reqLevel = 225
-						elseif itemLevel < 130 then
-							reqLevel = 275
-						elseif itemLevel < 154 then
-							reqLevel = 325
-						else
-							reqLevel = 350
-						end
-					else
-						if itemLevel < 90 then
-							reqLevel = 225
-						elseif itemLevel < 130 then
-							reqLevel = 300
-						elseif itemLevel < 154 then
-							reqLevel = 325
-						elseif itemLevel < 200 then
-							reqLevel = 350
-						end
+					if itemLevel < 90 then
+						reqLevel = 225
+					elseif itemLevel < 130 then
+						reqLevel = 300
+					elseif itemLevel < 154 then
+						reqLevel = 325
+					elseif itemLevel < 200 then
+						reqLevel = 350
 					end
 				end
-
-				recipeCache[-itemID].canCraft = { "playerDisenchantLevel", reqLevel }
 			end
 
-			itemCache[itemID].BOP = itemBOPCheck(itemID)
-]]
+			recipeCache[-itemID].canCraft = { "playerDisenchantLevel", reqLevel }
 
-		AddToDataTable(GnomeWorks.data.itemSource, itemID, recipeID, numMade)
+			if recipeID then
+				if not itemCache[itemID].craftSource then
+					itemCache[itemID].craftSource = {}
+				end
+
+				itemCache[itemID].craftSource[recipeID] = numMade or 1
+			end
+]]
+		end
+
+--		itemCache[itemID].BOP = itemBOPCheck(itemID)
+
+		return AddToDataTable(GnomeWorks.data.itemSource, itemID, recipeID, numMade)
 	end
 
 
-	local function AddToReagentCache(reagentID, recipeID)
-		AddToDataTable(GnomeWorks.data.reagentUsage, reagentID, recipeID, numMade)
+	function GnomeWorks:AddToReagentCache(reagentID, recipeID, numNeeded)
+		return AddToDataTable(GnomeWorks.data.reagentUsage, reagentID, recipeID, numNeeded)
 	end
 
 
@@ -208,12 +223,9 @@ DebugSpam("parsing skill list")
 
 			if link then
 DebugSpam("found ", link, tradeLink)
-				if id == 2656 then
-					tradeLink = "|cffffd000|Htrade:2656:1:1:0:/|h["..GetSpellInfo(id) .."]|h|r"			-- fake link for data collection purposes
-				end
 
-				if id == 53428 then
-					tradeLink = "|cffffd000|Htrade:53428:1:1:0:/|h["..GetSpellInfo(id) .."]|h|r"		-- fake link for data collection purposes
+				if unlinkableTrades[id] then
+					tradeLink = "|cffffd000|Htrade:"..id..":1:1:0:/|h["..GnomeWorks:GetTradeName(id).."]|h|r"			-- fake link for data collection purposes
 				end
 
 				playerData.links[id] = tradeLink
@@ -237,24 +249,32 @@ DebugSpam("found ", link, tradeLink)
 				playerData.links[id] = string.format("%s:450:450:%s%s%s",tradeID, guid, fullBitMap, tail)
 
 --				print(playerData.links[id])
+			else
+				playerData.links[id] = "|cffffd000|Htrade:"..id..":1:1:0:/|h["..GnomeWorks:GetTradeName(id).."]|h|r"			-- fake link for data collection purposes
 			end
 		end
 DebugSpam("done parsing skill list")
 	end
 
 
-	function GnomeWorks:OpenTradeLink(tradeLink)
+	function GnomeWorks:OpenTradeLink(tradeLink, player)
 		if tradeLink then
 			local tradeString = string.match(tradeLink, "(trade:%d+:%d+:%d+:[0-9a-fA-F]+:[A-Za-z0-9+/]+)")
 
-			if (UnitName("player")) == player then
-				local tradeName = GetSpellInfo(string.match(tradeString, "trade:(%d+)"))
+			local tradeID = string.match(tradeString,"trade:(%d+)")
 
-				if ((GetTradeSkillLine() == "Mining" and "Smelting") or GetTradeSkillLine()) ~= tradeName or IsTradeSkillLinked() then
-					CastSpellByName(tradeName)
-				end
-			else
+			tradeID = tonumber(tradeID)
+
+			if not unlinkableTrades[tradeID] then
 				SetItemRef(tradeString,tradeLink,"LeftButton")
+			else
+				self.tradeID = tradeID
+				self.player = player
+				self.selectedSkill = 1
+
+
+				self:ScheduleTimer("UpdateMainWindow",.01)
+--				self:UpdateMainWindow()
 			end
 		end
 	end
@@ -262,27 +282,34 @@ DebugSpam("done parsing skill list")
 
 
 	function GnomeWorks:SelectSkill(index)
-		if index then
-			local skillName, skillType = GetTradeSkillInfo(index)
+		if unlinkableTrades[self.tradeID] then
+			self:ShowDetails(index)
+			self:ShowReagents(index)
 
-			if skillType ~= "header" then
-				SelectTradeSkill(index)
-				self:ShowDetails(index)
-				self:ShowReagents(index)
+			self:SkillListDraw(index)
 
-				self.selectedSkill = index
+			self:ScrollToIndex(index)
+		else
+			if index then
+				local skillName, skillType = GetTradeSkillInfo(index)
 
-				self:SkillListDraw(index)
+				if skillType ~= "header" then
+					SelectTradeSkill(index)
+					self:ShowDetails(index)
+					self:ShowReagents(index)
 
---				self:ShowSkillList()
+					self:SkillListDraw(index)
 
-				self:ScrollToIndex(index)
-			else
-	--			self:HideDetails()
-	--			self:HideReagents()
+	--				self:ShowSkillList()
 
-	--			SelectTradeSkill(index)
+					self:ScrollToIndex(index)
+				else
+		--			self:HideDetails()
+		--			self:HideReagents()
 
+		--			SelectTradeSkill(index)
+
+				end
 			end
 		end
 	end
@@ -300,7 +327,6 @@ DebugSpam("done parsing skill list")
 
 			for i=1,GetNumTradeSkills() do
 				local link = GetTradeSkillRecipeLink(i)
-				local link = GetTradeSkillRecipeLink(i)
 
 				if link and string.find(link, enchantString) then
 
@@ -312,6 +338,9 @@ DebugSpam("done parsing skill list")
 			if skillIndex then
 				GnomeWorks:SelectSkill(skillIndex)
 			end
+
+
+			GnomeWorks:UnregisterMessage("GnomeWorksScanComplete")
 --		end
 	end
 
@@ -330,7 +359,7 @@ DebugSpam("done parsing skill list")
 			if player == (UnitName("player")) then
 				CastSpellByName((GetSpellInfo(tradeID)))
 			else
-				self:OpenTradeLink(self:GetTradeLink(tradeID, player))
+				self:OpenTradeLink(self:GetTradeLink(tradeID, player), player)
 			end
 
 			GnomeWorks:RegisterMessage("GnomeWorksScanComplete", function() DoRecipeSelection(recipeID) end)
@@ -359,7 +388,7 @@ DebugSpam("done parsing skill list")
 				if player == (UnitName("player")) then
 					CastSpellByName((GetSpellInfo(tradeID)))
 				else
-					self:OpenTradeLink(self:GetTradeLink(tradeID, player))
+					self:OpenTradeLink(self:GetTradeLink(tradeID, player), player)
 				end
 
 
@@ -422,6 +451,12 @@ DebugSpam("done parsing skill list")
 
 		self.tradeID = tradeID
 		self.player = player
+
+		if self.selectedSkill == nil or self.selectedSkill > GetNumTradeSkills() then
+			self.selectedSkill = GetFirstTradeSkill()
+		end
+
+		GnomeWorks.skillFrame.scrollFrame.selectedIndex = self.selectedSkill
 
 
 		if not recacheRecipe then
@@ -590,7 +625,7 @@ DebugSpam("done parsing skill list")
 
 								numMade = (minMade + maxMade) / 2
 
-								AddToItemCache(itemID, recipeID, numMade)					-- add a cross reference for the source of particular items
+								GnomeWorks:AddToItemCache(itemID, recipeID, numMade)					-- add a cross reference for the source of particular items
 							end
 
 
@@ -614,7 +649,7 @@ DebugSpam("done parsing skill list")
 
 								reagentData[reagentID] = numNeeded
 
-								AddToReagentCache(reagentID, recipeID, numNeeded)
+								self:AddToReagentCache(reagentID, recipeID, numNeeded)
 --								self:ItemDataAddUsedInRecipe(reagentID, recipeID)				-- add a cross reference for where a particular item is used
 							end
 
@@ -709,19 +744,19 @@ DebugSpam("done parsing skill list")
 
 
 	function GnomeWorks:GetSkillColor(index)
-		local skillName, skillType = GetTradeSkillInfo(index)
+		local skillName, skillType = self:GetTradeSkillInfo(index)
 
 		return skillTypeColor[skillType]
 	end
 
 	function GnomeWorks:GetSkillDifficultyLevel(index)
-		local skillName, skillType = GetTradeSkillInfo(index)
+		local skillName, skillType = self:GetTradeSkillInfo(index)
 
 		return skillTypeStyle[skillType].level
 	end
 
 	function GnomeWorks:GetSkillDifficulty(index)
-		local skillName, skillType = GetTradeSkillInfo(index)
+		local skillName, skillType = self:GetTradeSkillInfo(index)
 
 		return skilltype
 	end

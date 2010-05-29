@@ -51,6 +51,8 @@ Details.lua
 Queue.lua
 ShoppingList.lua
 Inventory.lua
+GetTradeSkill.lua
+
 
 #### API
 API.lua

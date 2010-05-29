@@ -128,7 +128,7 @@ local function RegisterWithLSW()
 						if LSWConfig.singleColumn then
 							valueText = (LSW:FormatMoney((valueAmount or 0) - (costAmount or 0),hilight) or "--")..itemFateString
 						else
-							if valueAmount < 0 then
+							if (valueAmount or -1) < 0 then
 								valueText = "   --"..itemFateString
 							else
 								valueText = (LSW:FormatMoney(valueAmount,hilight) or "--")..itemFateString
@@ -334,23 +334,19 @@ local function RegisterWithLSW()
 			end
 		end,
 		OnLeave = function (cellFrame)
-			if cellFrame:GetParent().rowIndex>0 then
-				local entry = cellFrame:GetParent().data
---				cellFrame:SetID(entry.skillIndex)
---				LSW.buttonScripts.costButton.OnLeave(cellFrame)
-			else
-				GameTooltip:Hide()
-			end
+			GameTooltip:Hide()
 		end,
 	}
+
 
 
 	local function updateData(scrollFrame, entry)
 		local skillName, skillType, itemLink, recipeLink, itemID, recipeID = LSW:GetTradeSkillData(entry.index)
 
+
 		if skillType ~= "header" then
-			entry.value, entry.fate = LSW:GetSkillValue(recipeID, globalFate)
-			entry.cost = LSW:GetSkillCost(recipeID)
+			entry.value, entry.fate = LSW:GetSkillValue(entry.recipeID, globalFate)
+			entry.cost = LSW:GetSkillCost(entry.recipeID)
 		end
 	end
 
@@ -414,6 +410,28 @@ local function RegisterWithLSW()
 
 		LSW.RefreshWindow = refreshWindow
 
+
+		function LSW:GetTradeSkillData(id)
+			local skillName, skillType = GnomeWorks:GetTradeSkillInfo(id)
+			local itemLink = GnomeWorks:GetTradeSkillItemLink(id)
+			local recipeLink = GnomeWorks:GetTradeSkillRecipeLink(id)
+
+			local itemID = LSW:FindID(itemLink)
+			local recipeID = LSW:FindID(recipeLink)
+
+			if itemID and recipeID and recipeID == tradeID then
+				local scroll = LSW.scrollData[recipeID]
+
+				if scroll then
+					itemID = scroll.scrollID					-- for enchants, the item created is a scroll
+					scrollVellum = scroll.vellumID
+				else
+					itemID = -recipeID
+				end
+			end
+
+			return skillName, skillType, itemLink, recipeLink, itemID, recipeID
+		end
 	end
 
 

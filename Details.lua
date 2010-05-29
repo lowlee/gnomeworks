@@ -212,17 +212,31 @@ do
 		end
 
 		sf.numData = 0
+		sf.data.numEntries = 0
 
 		function GnomeWorks:HideReagents()
 			reagentFrame:Hide()
 		end
 
 		function GnomeWorks:ShowReagents(index)
+			if not index or not self.tradeID then return end
+
+			local recipeID = self.data.skillDB[self.player..":"..self.tradeID] and self.data.skillDB[self.player..":"..self.tradeID].recipeID[index]
+
+			if not recipeID then
+				if not self.data.pseudoTrade[self.tradeID] then
+					return
+				end
+
+				recipeID = self.data.pseudoTrade[self.tradeID][index]
+			end
+
+
 			reagentFrame:Show()
 
 --			local skillData = self:GetSkillData(index)
 
-			local recipeID = self.data.skillDB[self.player..":"..self.tradeID].recipeID[index]
+--			local recipeID = self.data.skillDB[self.player..":"..self.tradeID] and self.data.skillDB[self.player..":"..self.tradeID].recipeID[index] or self.data.pseudoTrade[self.tradeID][index]
 
 			if recipeID then
 --				local results, reagents, tradeID = self:GetRecipeData(skillData.id)
@@ -293,6 +307,37 @@ do
 
 		local parentFrame = detailFrame.scrollChild
 
+--[[
+		local linkIcon = CreateFrame("Button",nil,detailFrame)
+
+		linkIcon:EnableMouse(true)
+
+		linkIcon:SetWidth(16)
+		linkIcon:SetHeight(16)
+
+		linkIcon:SetPoint("TOPRIGHT",-3,-3)
+
+		local normalTexture = linkIcon:CreateTexture(nil,"OVERLAY")
+		normalTexture:SetTexture("Interface\\TradeSkillFrame\\UI-TradeSkill-LinkButton")
+		normalTexture:SetTexCoord(0,1,0,.5)
+
+		linkIcon:SetNormalTexture("Interface\\TradeSkillFrame\\UI-TradeSkill-LinkButton")
+
+		local highlightTexture = linkIcon:CreateTexture(nil,"OVERLAY")
+		highlightTexture:SetTexture("Interface\\TradeSkillFrame\\UI-TradeSkill-LinkButton")
+		highlightTexture:SetTexCoord(0,1,0.5,1.0)
+		highlightTexture:SetBlendMode("ADD")
+
+		linkIcon:SetHighlightTexture(highlightTexture)
+]]
+
+		local detailIcon = CreateFrame("Button",nil,detailFrame)
+
+		detailIcon:SetScript("OnClick", function(frame,...)
+			HandleModifiedItemClick(GnomeWorks:GetTradeSkillRecipeLink(GnomeWorks.selectedSkill))
+		end)
+
+
 		local detailIcon = CreateFrame("Button",nil,detailFrame)
 
 		detailIcon:EnableMouse(true)
@@ -303,13 +348,15 @@ do
 		detailIcon:SetPoint("TOPLEFT", 3,-3)
 
 		detailIcon:SetScript("OnClick", function(frame,...)
-			HandleModifiedItemClick(GetTradeSkillItemLink(GnomeWorks.selectedSkill))
+			HandleModifiedItemClick(GnomeWorks:GetTradeSkillItemLink(GnomeWorks.selectedSkill))
 		end)
 
 		detailIcon:SetScript("OnEnter", function(frame,...)
 			if GnomeWorks.selectedSkill then
 				GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
-				GameTooltip:SetTradeSkillItem(GnomeWorks.selectedSkill)
+				GameTooltip:SetHyperlink(GnomeWorks:GetTradeSkillItemLink(GnomeWorks.selectedSkill))
+				GameTooltip:AddLine("Shift-Click to Link Item")
+				GameTooltip:Show()
 			end
 			CursorUpdate(self)
 		end)
@@ -325,22 +372,42 @@ do
 		detailNumMadeLabel:SetJustifyV("BOTTOM")
 
 
+		local detailNameButton = CreateFrame("Button",nil,detailFrame)
+		detailNameButton:SetPoint("TOPLEFT", detailIcon, "TOPRIGHT", 5,0)
+		detailNameButton:SetPoint("RIGHT", -5,0)
+		detailNameButton:SetHeight(30)
 
-		local detailNameLabel = detailFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		detailNameLabel:SetPoint("TOPLEFT", detailIcon, "TOPRIGHT", 5,0)
-		detailNameLabel:SetPoint("RIGHT", -5,0)
-		detailNameLabel:SetHeight(30)
+
+		local detailNameLabel = detailNameButton:CreateFontString(nil,"OVERLAY", "GameFontNormal")
+		detailNameLabel:SetPoint("TOPLEFT")
+		detailNameLabel:SetPoint("BOTTOMRIGHT")
 		detailNameLabel:SetJustifyH("LEFT")
-		detailNameLabel:SetTextColor(1,1,1)
+		detailNameLabel:SetTextColor(1,.8,0)
 
---[[
-		local old_ScrollFrame_OnScrollRangeChanged = ScrollFrame_OnScrollRangeChanged
 
-		ScrollFrame_OnScrollRangeChanged = function(self, x,y)
-			print(self:GetName() or "nil", x,y)
-			old_ScrollFrame_OnScrollRangeChanged(self,x,y)
-		end
-]]
+		detailNameButton:EnableMouse(true)
+
+		detailNameButton:RegisterForClicks("AnyUp")
+
+
+		detailNameButton:SetScript("OnClick", function(frame,...)
+			HandleModifiedItemClick(GnomeWorks:GetTradeSkillRecipeLink(GnomeWorks.selectedSkill))
+		end)
+
+		detailNameButton:SetScript("OnEnter", function(frame,...)
+			GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+			GameTooltip:ClearLines()
+			GameTooltip:AddLine("Shift-Click to Link Recipe")
+			GameTooltip:Show()
+
+			detailNameLabel:SetTextColor(1,1,1)
+		end)
+
+		detailNameButton:SetScript("OnLeave", function(...)
+			detailNameLabel:SetTextColor(1,.8,0)
+			GameTooltip_HideResetCursor(...)
+		end)
+
 
 
 	-- scrolling part below
@@ -395,91 +462,98 @@ do
 		end
 
 		function GnomeWorks:ShowDetails(index)
-			detailFrame:Show()
-			local skillName = GetTradeSkillInfo(index)
+			if not index or not self.tradeID then return end
 
-			detailIcon:SetNormalTexture(GetTradeSkillIcon(index))
+			local recipeID = self.data.skillDB[self.player..":"..self.tradeID] and self.data.skillDB[self.player..":"..self.tradeID].recipeID[index]
 
-			local minMade, maxMade = GetTradeSkillNumMade(index)
-
-			if maxMade > 1 then
-				if minMade ~= maxMade then
-					detailNumMadeLabel:SetFormattedText("%s/%s",minMade, maxMade)
-				else
-					detailNumMadeLabel:SetText(minMade)
+			if not recipeID then
+				if not self.data.pseudoTrade[self.tradeID] then
+					return
 				end
 
+				recipeID = self.data.pseudoTrade[self.tradeID][index]
+			end
+
+			detailFrame:Show()
+
+			local skillName = self:GetRecipeName(recipeID)
+
+			detailIcon:SetNormalTexture(self:GetTradeSkillIcon(index))
+
+--			local numMade = next(GnomeWorksDB.results[recipeID])
+
+			local minMade, maxMade = GnomeWorks:GetTradeSkillNumMade(index)
+
+			local numMade = (minMade + maxMade)/2
+
+			if numMade ~= 1 then
+				detailNumMadeLabel:SetText(numMade)
 				detailNumMadeLabel:Show()
 			else
 				detailNumMadeLabel:Hide()
 			end
 
-
 --print("vertical scroll range ", detailFrame.textScroll:GetVerticalScrollRange())
 
 			detailNameLabel:SetText(skillName)
 
-			if GetTradeSkillTools(index) then
-				toolsLabel:SetFormattedText("%s %s\n",REQUIRES_LABEL,BuildColoredListString(GetTradeSkillTools(index)))
+			if self:GetTradeSkillTools(index) then
+				toolsLabel:SetFormattedText("%s %s\n",REQUIRES_LABEL,BuildColoredListString(self:GetTradeSkillTools(index)))
 				toolsLabel:Show()
 			else
 				toolsLabel:Hide()
 				toolsLabel:SetText("")
 			end
 
-			if GetTradeSkillCooldown(index) then
-				cooldownLabel:SetFormattedText("%s %s\n",COOLDOWN_REMAINING,SecondsToTime(GetTradeSkillCooldown(index)))
+			if self:GetTradeSkillCooldown(index) then
+				cooldownLabel:SetFormattedText("%s %s\n",COOLDOWN_REMAINING,SecondsToTime(self:GetTradeSkillCooldown(index)))
 				cooldownLabel:Show()
 			else
 				cooldownLabel:Hide()
 				cooldownLabel:SetText("")
 			end
 
---			if GetTradeSkillDescription(index) then
-				local link = GetTradeSkillItemLink(index)
+			local link = self:GetTradeSkillItemLink(index)
+
+			if strfind(link,"item:") or strfind(link,"spell:") then
 --print(link)
-				if strfind(link,"item:") then
+				tooltipScanner:SetOwner(frame, "ANCHOR_NONE")
+				tooltipScanner:SetHyperlink(link)
+--tooltipScanner:Hide()
 
-					tooltipScanner:SetHyperlink(link)
-
-					local tiplines = tooltipScanner:NumLines()
+				local tiplines = tooltipScanner:NumLines()
 --print(tiplines)
 
-					local lineText,lineTextRight = "",""
+				local lineText,lineTextRight = "",""
 
-					for i=2, tiplines do
-						local fs = getglobal("GWParsingTooltipTextLeft"..i)
+				for i=2, tiplines do
+					local fs = getglobal("GWParsingTooltipTextLeft"..i)
 
-						local r,g,b,a = fs:GetTextColor()
+					local r,g,b,a = fs:GetTextColor()
 
-						lineText = string.format("%s|c%2x%2x%2x%2x%s|r\n",lineText,a*255,r*255,g*255,b*255,fs:GetText())
+					lineText = string.format("%s|c%2x%2x%2x%2x%s|r\n",lineText,a*255,r*255,g*255,b*255,fs:GetText())
 
 
-						local fs = getglobal("GWParsingTooltipTextRight"..i)
+					local fs = getglobal("GWParsingTooltipTextRight"..i)
 
-						local r,g,b,a = fs:GetTextColor()
+					local r,g,b,a = fs:GetTextColor()
 
-						lineTextRight = string.format("%s|c%2x%2x%2x%2x%s|r\n",lineTextRight,a*255,r*255,g*255,b*255,fs:GetText() or "")
+					lineTextRight = string.format("%s|c%2x%2x%2x%2x%s|r\n",lineTextRight,a*255,r*255,g*255,b*255,fs:GetText() or "")
 
---	print(i,lineText)
-					end
-
-					descriptionLabel:SetText(lineText)
-					descriptionLabelRight:SetText(lineTextRight)
-
-					descriptionLabel:Show()
-					descriptionLabelRight:Show()
-				else
-					descriptionLabel:SetText(GetTradeSkillDescription(index))
-					descriptionLabelRight:SetText("")
-					descriptionLabelRight:Hide()
-					descriptionLabel:Show()
+--print(i,lineText)
 				end
 
---			else
---				descriptionLabel:SetText("")
---				descriptionLabel:Hide()
---			end
+				descriptionLabel:SetText(lineText)
+				descriptionLabelRight:SetText(lineTextRight)
+
+				descriptionLabel:Show()
+				descriptionLabelRight:Show()
+			else
+				descriptionLabel:SetText(self:GetTradeSkillDescription(index))
+				descriptionLabelRight:SetText("")
+				descriptionLabelRight:Hide()
+				descriptionLabel:Show()
+			end
 		end
 
 

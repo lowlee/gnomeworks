@@ -16,12 +16,15 @@
 
 
 
-
+local LARGE_NUMBER = 1000000
 
 
 do
 	local frame
 	local sf
+
+	local doTradeEntry
+
 
 	local clientVersion, clientBuild = GetBuildInfo()
 
@@ -49,6 +52,9 @@ do
 
 
 	local queueFrame
+
+	local queuePlayer
+
 
 
 	local queueColors = {
@@ -94,7 +100,11 @@ do
 									GameTooltip:SetOwner(rowFrame, "ANCHOR_TOPRIGHT")
 									GameTooltip:ClearLines()
 
-									GameTooltip:AddLine("missing reagent",1,0,0)
+									if entry.numAvailable < 1 then
+										GameTooltip:AddLine("missing reagents",1,0,0)
+									else
+										GameTooltip:AddLine("only enough reagents for "..entry.numAvailable,.8,.8,0)
+									end
 
 									GameTooltip:Show()
 								end
@@ -105,7 +115,11 @@ do
 						end,
 			draw =	function (rowFrame,cellFrame,entry)
 							if entry.count > entry.numAvailable then
-								cellFrame.text:SetTextColor(1,0,0)
+								if entry.numAvailable < 1 then
+									cellFrame.text:SetTextColor(1,0,0)
+								else
+									cellFrame.text:SetTextColor(.8,.8,0)
+								end
 							else
 								cellFrame.text:SetTextColor(1,1,1)
 							end
@@ -190,10 +204,13 @@ do
 
 
 						if entry.command == "process" then
-							local name, rank, icon = GetSpellInfo(entry.tradeID)
+							local name, rank, icon = GnomeWorks:GetTradeInfo(entry.tradeID)
 
-							cellFrame.text:SetFormattedText("|T%s:16:16:0:-2|t %s",icon or "",(GetSpellInfo(entry.recipeID)))
-
+							if entry.sourcePlayer and entry.manualEntry then
+								cellFrame.text:SetFormattedText("|T%s:16:16:0:-2|t %s (%s)",icon or "",GnomeWorks:GetRecipeName(entry.recipeID), entry.sourcePlayer)
+							else
+								cellFrame.text:SetFormattedText("|T%s:16:16:0:-2|t %s",icon or "",GnomeWorks:GetRecipeName(entry.recipeID))
+							end
 
 							if needsScan then
 								cellFrame.text:SetTextColor(1,0,0, (entry.manualEntry and 1) or .75)
@@ -253,7 +270,7 @@ do
 			}
 
 		queueFrame = CreateFrame("Frame",nil,frame)
-		queueFrame:SetPoint("BOTTOMLEFT",20,80)
+		queueFrame:SetPoint("BOTTOMLEFT",20,40)
 		queueFrame:SetPoint("TOP", frame, 0, -45)
 		queueFrame:SetPoint("RIGHT", frame, -20,0)
 
@@ -262,6 +279,14 @@ do
 		sf = GnomeWorks:CreateScrollingTable(queueFrame, ScrollPaneBackdrop, columnHeaders, ResizeQueueFrame)
 
 --		sf.childrenFirst = true
+
+		sf.IsEntryFiltered = function(self, entry)
+			if not entry.manualEntry and entry.numAvailable > 0 then
+				return true
+			else
+				return false
+			end
+		end
 
 --[[
 		sf.IsEntryFiltered = function(self, entry)
@@ -286,7 +311,7 @@ do
 ]]
 
 		local function UpdateRowData(scrollFrame,entry,firstCall)
-			local player = GnomeWorks.player
+			local player = queuePlayer
 
 			if firstCall then
 				GnomeWorks.data.inventoryData[player].queue = table.wipe(GnomeWorks.data.inventoryData[player].queue or {})
@@ -333,7 +358,7 @@ do
 
 
 
-	local function AddPurchaseToConstructionQueue(itemID, count, data, overRide)
+	local function AddPurchaseToConstructionQueue(itemID, count, data, sourcePlayer, overRide)
 
 		for i=1,#data do
 			if data[i].itemID == itemID then
@@ -347,7 +372,7 @@ do
 			end
 		end
 
-		local newEntry = { index = #data+1, command = "purchase", itemID = itemID, count = count}
+		local newEntry = { index = #data+1, command = "purchase", itemID = itemID, count = count, sourcePlayer = sourcePlayer}
 
 		data[#data + 1] = newEntry
 
@@ -355,7 +380,7 @@ do
 	end
 
 
-	local function AddRecipeToConstructionQueue(tradeID, recipeID, count, data, overRide)
+	local function AddRecipeToConstructionQueue(tradeID, recipeID, count, data, sourcePlayer, overRide)
 		for i=1,#data do
 			if data[i].recipeID == recipeID then
 				if overRide then
@@ -368,7 +393,7 @@ do
 			end
 		end
 
-		local newEntry = { index=#data+1, command = "process", tradeID = tradeID, recipeID = recipeID, count = count }
+		local newEntry = { index=#data+1, command = "process", tradeID = tradeID, recipeID = recipeID, count = count, sourcePlayer = sourcePlayer }
 
 		data[#data + 1] = newEntry
 
@@ -394,7 +419,7 @@ do
 	local recursionLimiter = {}
 	local cooldownUsed = {}
 
-	local function AddToConstructionQueue(player, tradeID, recipeID, count, data, primary, overRide)
+	local function AddToConstructionQueue(player, tradeID, recipeID, count, data, sourcePlayer, primary, overRide)
 		if not recipeID then return nil, 0 end
 
 		if recursionLimiter[recipeID] then return nil, 0 end
@@ -427,7 +452,7 @@ do
 
 		local craftable = GnomeWorks:InventoryRecipeIterations(recipeID, player, "bag")
 
-		local newEntry, newCount = AddRecipeToConstructionQueue(tradeID, recipeID, count, data, overRide)
+		local newEntry, newCount = AddRecipeToConstructionQueue(tradeID, recipeID, count, data, sourcePlayer, overRide)
 
 		newEntry.manualEntry = primary
 
@@ -444,7 +469,7 @@ do
 					newEntry.subGroup = { expanded = false, entries = {} }
 				end
 
-				local purchase = AddPurchaseToConstructionQueue(reagentID, inQueue, newEntry.subGroup.entries, true)			-- last arg true means set count instead of adding
+				local purchase = AddPurchaseToConstructionQueue(reagentID, inQueue, newEntry.subGroup.entries, sourcePlayer, true)			-- last arg true means set count instead of adding
 
 				local source = itemSourceData[reagentID]
 
@@ -462,9 +487,12 @@ do
 					for sourceRecipeID,numMade in pairs(source) do
 --							local childData = GnomeWorks.data.recipeDB[childRecipe]
 
-						AddToConstructionQueue(player, tradeIDs[sourceRecipeID], sourceRecipeID, math.ceil(inQueue / numMade), purchase.subGroup.entries, nil, true)
+						AddToConstructionQueue(player, tradeIDs[sourceRecipeID], sourceRecipeID, math.ceil(inQueue / numMade), purchase.subGroup.entries, sourcePlayer, nil, true)
 					end
 
+					if #purchase.subGroup.entries == 0 then
+						purchase.subGroup = nil
+					end
 --					needsCrafting = true
 				else
 --					AddPurchaseToConstructionQueue(reagentID, inQueue, newEntry.subGroup.entries)
@@ -513,7 +541,7 @@ do
 		if queue then
 			for i=1,#queue do
 
-				local entry = AddToConstructionQueue(player, queue[i].tradeID, queue[i].recipeID, queue[i].count, data, true)
+				local entry = AddToConstructionQueue(player, queue[i].tradeID, queue[i].recipeID, queue[i].count, data, queue[i].sourcePlayer, true)
 
 				if entry then
 					entry.manualEntry = i
@@ -529,10 +557,10 @@ do
 
 	local function AdjustConstructionQueueCounts(queue)
 		if queue then
-			local player = GnomeWorks.player
+			local player = queuePlayer
 
 			for k,q in pairs(queue) do
-				AddToConstructionQueue(player, q.tradeID, q.recipeID, q.count, queue, true, true)
+				AddToConstructionQueue(player, q.tradeID, q.recipeID, q.count, queue, q.sourcePlayer, true, true)
 			end
 		end
 	end
@@ -549,10 +577,13 @@ do
 				queue[k].count = q.count
 				queue[k].recipeID = q.recipeID
 				queue[k].tradeID = q.tradeID
+				queue[k].sourcePlayer = q.sourcePlayer
 			end
 
-			for i=#conQueue+1,#queue do
-				queue[i] = nil
+			if queue then
+				for i=#conQueue+1,#queue do
+					queue[i] = nil
+				end
 			end
 
 			AdjustConstructionQueueCounts(conQueue)
@@ -561,6 +592,14 @@ do
 
 
 	function GnomeWorks:AddToQueue(player, tradeID, recipeID, count)
+		local sourcePlayer
+
+		if not self.data.playerData[player] then
+			sourcePlayer = player
+			player = queuePlayer
+		end
+
+
 		local queueData = self.data.constructionQueue[player]
 
 --[[
@@ -580,7 +619,7 @@ do
 --		table.insert(self.data.queueData[player], QueueCommandIterate(tradeID, recipeID, count))
 ]]
 
-		AddToConstructionQueue(player, tradeID, recipeID, count, queueData, true)
+		AddToConstructionQueue(player, tradeID, recipeID, count, queueData, sourcePlayer, true)
 
 		self:ShowQueueList()
 		self:ShowSkillList()
@@ -588,12 +627,18 @@ do
 
 
 	function GnomeWorks:ShowQueueList(player)
-		player = player or self.player
+		player = player or (self.data.playerData[self.player] and self.player) or UnitName("player")
+		queuePlayer = player
 
 		if player then
 			frame.playerNameFrame:SetFormattedText("%s Queue",player)
 
+			if not self.data.queueData[player] then
+				self.data.queueData[player] = {}
+			end
+
 			local queue = self.data.queueData[player]
+
 
 			if not self.data.constructionQueue[player] then
 				self.data.constructionQueue[player] = {}
@@ -618,26 +663,117 @@ do
 	end
 
 
+	local function FirstCraftableEntry(queue)
+		for k,q in pairs(queue) do
+			if q.command == "process" and q.numAvailable > 0 and q.count > 0 then
+				return q
+			end
+
+			if q.subGroup then
+				local f = FirstCraftableEntry(q.subGroup.entries)
+
+				if f then return f end
+			end
+		end
+	end
+
+	local function DeleteQueueEntry(queue, entry)
+		for k,q in pairs(queue) do
+			if q == entry then
+				table.remove(queue, k)
+				return true
+			end
+
+			if q.subGroup then
+				if DeleteQueueEntry(q.subGroup.entries, entry) then
+					return true
+				end
+			end
+		end
+	end
+
+
+	function GnomeWorks:SpellCastFailed(event,unit,spell,rank)
+--print("SPELL CAST FAILED", ...)
+		if unit == "player" then
+			doTradeEntry = nil
+		end
+	end
+
+
+	function GnomeWorks:SpellCastCompleted(event,unit,spell,rank)
+--print("SPELL CAST COMPLETED", ...)
+
+		if unit == "player"	and doTradeEntry then
+			doTradeEntry.count = doTradeEntry.count - 1
+
+			if doTradeEntry.count == 0 then
+				DeleteQueueEntry(self.data.constructionQueue[queuePlayer], doTradeEntry)
+
+				doTradeEntry = nil
+			end
+
+			self:ShowQueueList()
+		end
+	end
+
 
 
 	local function CreateControlButtons(frame)
-
 		local function ProcessQueue()
+			local entry = FirstCraftableEntry(GnomeWorks.data.constructionQueue[queuePlayer])
 
+			if entry then
+--				print(entry.recipeID, GnomeWorks:GetRecipeName(entry.recipeID), entry.count, entry.numAvailable)
+				if GetSpellLink((GetSpellInfo(entry.tradeID))) then
+					if GnomeWorks:IsTradeSkillLinked() or GnomeWorks.player ~= UnitName("player") or GnomeWorks.tradeID ~= entry.tradeID then
+						CastSpellByName(GetSpellInfo(entry.tradeID))
+					end
+
+					local skillIndex
+
+					local enchantString = "enchant:"..entry.recipeID.."|h"
+
+					for i=1,GetNumTradeSkills() do
+						local link = GetTradeSkillRecipeLink(i)
+
+						if link and string.find(link, enchantString) then
+
+							skillIndex = i
+							break
+						end
+					end
+
+					doTradeEntry = entry
+					DoTradeSkill(skillIndex,math.min(entry.count, entry.numAvailable))
+
+--					GnomeWorks:ProcessRecipe(entry.tradeID, entry.recipeID, math.max(entry.count, entry.numAvailable))
+				else
+					print("can't process "..GnomeWorks:GetRecipeName(entry.recipeID).." on this character")
+				end
+			else
+				print("nothing craftable")
+			end
 		end
 
 
 		local function ClearQueue()
-			table.wipe(GnomeWorks.data.constructionQueue[GnomeWorks.player])
-			table.wipe(GnomeWorks.data.inventoryData[GnomeWorks.player]["queue"])
+			table.wipe(GnomeWorks.data.constructionQueue[queuePlayer])
+			table.wipe(GnomeWorks.data.inventoryData[queuePlayer]["queue"])
 
 			GnomeWorks:ShowQueueList()
 			GnomeWorks:ShowSkillList()
 		end
 
 
+		local function StopProcessing()
+			StopTradeSkillRepeat()
+		end
+
+
 		local buttons = {
-			{ label = "Process",  operation = ProcessQueue},
+			{ label = "Process",  operation = ProcessQueue },
+			{ label = "Stop", operation = StopProcessing },
 			{ label = "Clear", operation = ClearQueue },
 		}
 
@@ -648,23 +784,26 @@ do
 		controlFrame:SetHeight(20)
 		controlFrame:SetWidth(200)
 
-		controlFrame:SetPoint("TOP", queueFrame, "BOTTOM", 0, 1)
+		controlFrame:SetPoint("TOP", queueFrame, "BOTTOM", 0, -2)
+
+		controlFrame.buttons = {}
 
 		for i, config in pairs(buttons) do
 			local newButton = CreateFrame("Button", nil, controlFrame, "UIPanelButtonTemplate")
 
 			newButton:SetPoint("LEFT", position,0)
-			newButton:SetWidth(100)
+			newButton:SetWidth(60)
 			newButton:SetHeight(18)
 			newButton:SetNormalFontObject("GameFontNormalSmall")
 			newButton:SetHighlightFontObject("GameFontHighlightSmall")
 
 			newButton:SetText(config.label)
 
-			newButton.count = config.count
 			newButton:SetScript("OnClick", config.operation)
 
-			position = position + 100
+			position = position + 60
+
+			controlFrame.buttons[i] = newButton
 		end
 
 		controlFrame:SetWidth(position)
@@ -678,7 +817,7 @@ do
 		frame = self.Window:CreateResizableWindow("GnomeWorksQueueFrame", nil, 200, 300, ResizeMainWindow, GnomeWorksDB.config)
 
 
-		frame:SetMinResize(200,100)
+		frame:SetMinResize(240,200)
 
 		BuildScrollingTable()
 
@@ -710,7 +849,17 @@ do
 --		frame:SetParent(self.MainWindow)
 
 
+		self:RegisterMessage("GnomeWorksInventoryScanComplete", function() if frame:IsShown() then GnomeWorks:ShowQueueList() end end)
+
 		CreateControlButtons(frame)
+
+
+
+		table.insert(UISpecialFrames, "GnomeWorksQueueFrame")
+
+		frame:SetScript("OnShow", function() PlaySound("igCharacterInfoOpen") end)
+		frame:SetScript("OnHide", function() PlaySound("igCharacterInfoClose") end)
+
 
 		return frame
 	end
