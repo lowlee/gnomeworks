@@ -61,7 +61,7 @@ API.lua
 
 ### plugin support
 plugins\lsw.lua
-
+plugins\arl.lua
 
 
 #### hooking into different frames/events

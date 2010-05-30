@@ -55,6 +55,8 @@ do
 
 
 	local playerSelectMenu
+	local pluginMenu
+
 
 	local columnHeaders
 
@@ -1011,7 +1013,7 @@ do
 
 			if (level == 2) then  -- skills per player
 				local links = GnomeWorks:GetTradeLinkList(UIDROPDOWNMENU_MENU_VALUE)
-				skillButton = {}
+				local skillButton = {}
 
 				for index, tradeID in ipairs(tradeIDList) do
 					if links[tradeID] then
@@ -1049,8 +1051,8 @@ do
 
 
 	function GnomeWorks:CreateControlFrame(frame)
-		local function AddToQueue(count)
-			local numItems = count
+		local function AddToQueue(button)
+			local numItems = button.count or 1
 
 			local recipeLink = self:GetTradeSkillRecipeLink(GnomeWorks.selectedSkill)
 
@@ -1085,15 +1087,66 @@ do
 			GnomeWorks:AddToQueue(GnomeWorks.player, GnomeWorks.tradeID, recipeID, numItems)
 		end
 
-
 		local function PopRecipe()
 			GnomeWorks:PopSelection()
+		end
+
+
+		local ShowPlugins do
+			local function InitMenu(menuFrame, level)
+				if (level == 1) then  -- plugins
+					local title = {}
+					local button = {}
+
+					title.text = "Plugins"
+					title.fontObject = "GameFontNormal"
+
+					UIDropDownMenu_AddButton(title)
+
+					local count = 0
+
+					for name,data in pairs(GnomeWorks.plugins) do
+						if data.loaded then
+							button.text = name
+							button.hasArrow = #data.menuList>0
+							button.value = data.menuList
+							button.disabled = false
+
+							UIDropDownMenu_AddButton(button)
+							count = count + 1
+						end
+					end
+
+					if count == 0 then
+						button.text = "No Plugins Found"
+						button.disabled = true
+
+						UIDropDownMenu_AddButton(button)
+					end
+				end
+
+				if (level == 2) then  -- functions per plugin
+					for index, button in ipairs(UIDROPDOWNMENU_MENU_VALUE) do
+						UIDropDownMenu_AddButton(button, level)
+					end
+				end
+			end
+
+			function ShowPlugins(frame)
+				if not pluginMenu then
+					pluginMenu = CreateFrame("Frame", "GWPluginMenu", UIParent, "UIDropDownMenuTemplate")
+				end
+
+				UIDropDownMenu_Initialize(pluginMenu, InitMenu, "MENU")
+				ToggleDropDownMenu(1, nil, pluginMenu, frame, 0, 0)
+			end
 		end
 
 
 		local buttons = {
 			{ label = "Add To Queue",  operation = AddToQueue, count = 1 },
 			{ label = "Queue All", operation = AddToQueue },
+			{ label = "Plugins", operation = ShowPlugins },
 --			{ label = "Back", operation = PopRecipe },
 		}
 		local position = 0
@@ -1117,7 +1170,7 @@ do
 			newButton:SetText(config.label)
 
 			newButton.count = config.count
-			newButton:SetScript("OnClick", function() config.operation(config.count) end )
+			newButton:SetScript("OnClick", function(button) config.operation(button) end )
 
 			position = position + 100
 		end

@@ -745,6 +745,7 @@ do
 					end
 
 					doTradeEntry = entry
+print("executing "..GnomeWorks:GetRecipeName(entry.recipeID).."("..skillIndex..") x "..math.min(entry.count, entry.numAvailable))
 					DoTradeSkill(skillIndex,math.min(entry.count, entry.numAvailable))
 
 --					GnomeWorks:ProcessRecipe(entry.tradeID, entry.recipeID, math.max(entry.count, entry.numAvailable))

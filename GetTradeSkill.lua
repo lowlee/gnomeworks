@@ -86,14 +86,16 @@ do
 	function PseudoTrade:GetTradeSkillItemLink(index)
 		local recipeID = self.data.pseudoTrade[self.tradeID][index]
 
-		if recipeID < 0 then
-			local _,link = GetItemInfo(-recipeID)
+		if recipeID then
+			if recipeID < 0 then
+				local _,link = GetItemInfo(-recipeID)
 
-			return link
-		else
-			local _,link = GetItemInfo(next(GnomeWorksDB.results[recipeID]))
+				return link
+			else
+				local _,link = GetItemInfo(next(GnomeWorksDB.results[recipeID]))
 
-			return link
+				return link
+			end
 		end
 	end
 
@@ -204,7 +206,7 @@ do
 						currentTradeSkill = GetSpellInfo(2656)
 					end
 
-					if currentTradeSKill ~= GetSpellInfo(self.tradeID) then
+					if currentTradeSkill ~= GetSpellInfo(self.tradeID) then
 						return PseudoTrade[api](self, ...)
 					end
 				end

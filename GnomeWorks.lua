@@ -237,7 +237,7 @@ do
 
 		for name,plugin in pairs(GnomeWorks.plugins) do
 --print("initializing",name)
-			plugin.initialize()
+			plugin.loaded = plugin.initialize()
 		end
 
 
@@ -264,6 +264,7 @@ do
 
 --	GetNumSkillLines()
 ]]
+
 
 
 	if not IsAddOnLoaded("AddOnLoader") then

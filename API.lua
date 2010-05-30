@@ -15,22 +15,40 @@
 
 
 do
+	local function AddButton(plugin, text, func)
+		local new = { text = text, func = func }
+
+		table.insert(plugin.menuList, new)
+
+		return new
+	end
+
+
 	--[[
 
 		GnomeWorks:RegisterPlugin(name, shortName)
 
 		name - name of plugin (eg "LilSparky's Workshop")
-		shortName - short name of plugin (eg "LSW")
 		initialize - function to call prior to initializing gnomeworks
 
 		returns plugin table (used for connecting other functions to plugin)
 	]]
 
-	function GnomeWorks:RegisterPlugin(name, shortName, initialize)
-		GnomeWorks.plugins[name] = { shortName = shortName, enabled = true, initialize = initialize }
+	function GnomeWorks:RegisterPlugin(name, initialize)
+		local plugin = {
+			AddButton = AddButton,
+			enabled = true,
+			initialize = initialize,
+			menuList = {
+			},
+		}
 
-		return GnomeWorks.plugins[name]
+		GnomeWorks.plugins[name] = plugin
+
+		return plugin
 	end
+
+
 
 
 

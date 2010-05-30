@@ -40,7 +40,7 @@ do
 		45357,			-- inscription
 		25229,          -- jewelcrafting
 		2108,           -- leatherworking
-	--	2575,			-- mining (or smelting?)
+--		2575,			-- mining (or smelting?)
 		2656,           -- smelting (from mining)
 		3908,           -- tailoring
 		2550,           -- cooking
@@ -240,6 +240,7 @@ DebugSpam("found ", link, tradeLink)
 
 		for k,id in pairs(tradeIDList) do
 			local link, tradeLink = GetSpellLink(id)
+--print(link, tradeLink)
 
 			if tradeLink then
 				local tradeID,ranks,guid,bitMap,tail = string.match(tradeLink,"(|c%x+|Htrade:%d+):(%d+:%d+):([0-9a-fA-F]+:)([A-Za-z0-9+/]+)(|h%[[^]]+%]|h|r)")
@@ -254,8 +255,22 @@ DebugSpam("found ", link, tradeLink)
 			end
 		end
 DebugSpam("done parsing skill list")
-	end
 
+--[[
+		for k,name in pairs({"Smelting", "Mining"}) do
+			for k,spellID in pairs({2575, 2656 }) do
+				for i=4,10 do
+					local bitMap = string.rep("/",i)
+					local tradeString = "trade:"..spellID..":1:1:10000000345738B:"..bitMap
+					local tradeLink = "|cffffd000|H"..tradeString.."|h["..name.."]|h|r"
+					SetItemRef(tradeString,tradeLink,"LeftButton")
+
+					print(tradeString, tradeLink)
+				end
+			end
+		end
+]]
+	end
 
 	function GnomeWorks:OpenTradeLink(tradeLink, player)
 		if tradeLink then
