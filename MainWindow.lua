@@ -149,12 +149,14 @@ do
 
 		for filterName,filter in pairs(filterParameters) do
 			local menuEntry = {
-				text = filter.label,
+				text = filter.text,
 				icon = filter.icon,
 				tooltipText = filter.tooltip,
 				func = filterSet,
 				arg1 = filterName,
 				notCheckable = notCheckable,
+				menuList = filter.menuList,
+				hasArrow = filter.menuList ~= nil,
 			}
 
 			if filter.checked then
@@ -168,6 +170,7 @@ do
 			if filter.coords then
 				menuEntry.tCoordLeft,menuEntry.tCoordRight,menuEntry.tCoordBottom,menuEntry.tCoordTop = unpack(filter.coords)
 			end
+
 
 			table.insert(menu, menuEntry)
 		end
@@ -213,13 +216,13 @@ do
 
 		craftFilterMenu[1].checked = parameters[index].enabled
 		craftFilterMenu[1].filterIndex = index
-		craftFilterMenu[1].text = "Filter by Inventory: "..parameters[index].label
+		craftFilterMenu[1].text = "Filter by Inventory: "..parameters[index].text
 	end
 
 
 	local craftFilterParameters = {
 		{
-			label = inventoryColors.bag.."bag",
+			text = inventoryColors.bag.."bag",
 			enabled = false,
 			func = function(entry)
 				if entry and entry.craftBag and entry.craftBag > 0 then
@@ -233,7 +236,7 @@ do
 			OnClick = adjustCraftFilterSource,
 		},
 		{
-			label = inventoryColors.vendor.."vendor",
+			text = inventoryColors.vendor.."vendor",
 			func = function(entry)
 				if entry and entry.craftVendor and entry.craftVendor > 0 then
 					return false
@@ -246,7 +249,7 @@ do
 			OnClick = adjustCraftFilterSource,
 		},
 		{
-			label = inventoryColors.bank.."bank",
+			text = inventoryColors.bank.."bank",
 			enabled = false,
 			func = function(entry)
 				if entry and entry.craftBank and entry.craftBank > 0 then
@@ -260,7 +263,7 @@ do
 			OnClick = adjustCraftFilterSource,
 		},
 		{
-			label = inventoryColors.alt.."alts",
+			text = inventoryColors.alt.."alts",
 			enabled = false,
 			func = function(entry)
 				if entry and entry.craftAlt and entry.craftAlt > 0 then
@@ -282,8 +285,8 @@ do
 	}
 
 	local levelFilterParameters = {
-		usable = {
-			label = "Player Meets Level Requirement",
+		{
+			text = "Player Meets Level Requirement",
 			enabled = false,
 			func = function(entry)
 				if entry and UnitLevel("player") >= (entry.itemLevel or 0) then
@@ -307,7 +310,7 @@ do
 --		{ text = "Collapse All", func = function() GnomeWorks:CollapseAllHeaders(sf.data.entries) sf:Refresh() end,},
 --		{ text = "Expand All", func = function() GnomeWorks:ExpandAllHeaders(sf.data.entries) sf:Refresh() end,},
 		{
-			text = "Filter by Level",
+			text = "Filter by Difficulty",
 			menuList = recipeLevelMenu,
 			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
 			tCoordLeft=0, tCoordRight=1, tCoordBottom=.5, tCoordTop=.75,
@@ -343,7 +346,7 @@ do
 
 	local recipeLevelParameters = {
 		{
-			label = "",
+			text = "",
 			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
 			coords = {0,1,0,.25},
 			enabled = false,
@@ -360,7 +363,7 @@ do
 			OnClick = adjustFilterIcon,
 		},
 		{
-			label = "",
+			text = "",
 			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
 			coords = {0,1,.25,.5},
 			func = function(entry)
@@ -376,7 +379,7 @@ do
 			OnClick = adjustFilterIcon,
 		},
 		{
-			label = "",
+			text = "",
 			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
 			coords = {0,1,.5,.75},
 			enabled = false,
@@ -392,23 +395,6 @@ do
 			checked = false,
 			OnClick = adjustFilterIcon,
 		},
---[[
-		{
-			label = "",
-			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
-			coords = {0,1,0.75,1},
-			enabled = false,
-			func = function(entry)
-				local difficulty = GnomeWorks:GetSkillDifficultyLevel(entry.skillIndex)
-				if difficulty > 0 then
-					return false
-				else
-					return true
-				end
-			end,
-			OnClick = radioButton,
-		},
-]]
 	}
 
 
@@ -428,6 +414,7 @@ do
 			enabled = function()
 				return GnomeWorks.tradeID ~= 53428
 			end,
+			filterMenu = levelFilterMenu,
 			draw = function (rowFrame,cellFrame,entry)
 							if entry.subGroup then
 								cellFrame.text:SetText("")
@@ -453,7 +440,7 @@ do
 									local x, y = GetCursorPosition()
 									local uiScale = UIParent:GetEffectiveScale()
 
-									EasyMenu(levelFilterMenu, filterMenuFrame, UIParent, x/uiScale,y/uiScale, "MENU", 5)
+									EasyMenu(cellFrame.header.filterMenu, filterMenuFrame, UIParent, x/uiScale,y/uiScale, "MENU", 5)
 								else
 									sf.sortInvert = (sf.SortCompare == cellFrame.header.sortCompare) and not sf.sortInvert
 
@@ -480,140 +467,53 @@ do
 							end,
 		}, -- [1]
 		{
-			["button"] = {
-				["normalTexture"] = "Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga",
-				["highlightTexture"] = "Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga",
-				["width"] = 14,
-				["height"] = 14,
+			button = {
+				normalTexture = "Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga",
+				highlightTexture = "Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga",
+				width = 14,
+				height = 14,
 			},
-			["font"] = "GameFontHighlight",
-			["name"] = "     Recipe",
-			["width"] = 250,
-			["bgcolor"] = colorDark,
-			["tooltipText"] = "click to sort\rright-click to filter",
-			["sortCompare"] = function(a,b)
+			font = "GameFontHighlight",
+			name = "     Recipe",
+			width = 250,
+			sortCompare = function(a,b)
 				return (a.index or 0) - (b.index or 0)
 			end,
-			["OnClick"] = function(cellFrame, button, source)
-								if cellFrame:GetParent().rowIndex>0 then
-									local entry = cellFrame:GetParent().data
+			filterMenu = recipeFilterMenu,
+			OnClick = function(cellFrame, button, source)
+							if cellFrame:GetParent().rowIndex>0 then
+								local entry = cellFrame:GetParent().data
 
-									if entry.subGroup and source == "button" then
-										entry.subGroup.expanded = not entry.subGroup.expanded
-										sf:Refresh()
-									else
-										GnomeWorks:SelectSkill(entry.index)
-										sf:Draw()
-									end
+								if entry.subGroup and source == "button" then
+									entry.subGroup.expanded = not entry.subGroup.expanded
+									sf:Refresh()
 								else
-									if button == "RightButton" then
-										local x, y = GetCursorPosition()
-										local uiScale = UIParent:GetEffectiveScale()
+									GnomeWorks:SelectSkill(entry.index)
+									sf:Draw()
+								end
+							else
+								if button == "RightButton" then
+									local x, y = GetCursorPosition()
+									local uiScale = UIParent:GetEffectiveScale()
 
-										EasyMenu(recipeFilterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
-									else
-										if source == "button" then
-											cellFrame.collapsed = not cellFrame.collapsed
+									EasyMenu(cellFrame.header.filterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
+								else
+									if source == "button" then
+										cellFrame.collapsed = not cellFrame.collapsed
 
-											if not cellFrame.collapsed then
-												GnomeWorks:CollapseAllHeaders(sf.data.entries)
-												sf:Refresh()
-
-												cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
-												cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
-											else
-												GnomeWorks:ExpandAllHeaders(sf.data.entries)
-												sf:Refresh()
-
-												cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
-												cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
-											end
-										else
-											sf.sortInvert = (sf.SortCompare == cellFrame.header.sortCompare) and not sf.sortInvert
-
-											sf:HighlightColumn(cellFrame.header.name, sf.sortInvert)
-											sf.SortCompare = cellFrame.header.sortCompare
+										if not cellFrame.collapsed then
+											GnomeWorks:CollapseAllHeaders(sf.data.entries)
 											sf:Refresh()
+
+											cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
+											cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
+										else
+											GnomeWorks:ExpandAllHeaders(sf.data.entries)
+											sf:Refresh()
+
+											cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
+											cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
 										end
-									end
-								end
-							end,
-			["draw"] =	function (rowFrame,cellFrame,entry)
-							cellFrame.text:SetPoint("LEFT", cellFrame, "LEFT", entry.depth*8+4+12, 0)
-
-							if entry.subGroup then
-								if entry.subGroup.expanded then
-									cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
-									cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
-								else
-									cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
-									cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
-								end
-
-								cellFrame.text:SetFormattedText("%s (%d Recipes)",entry.name,#entry.subGroup.entries)
-								cellFrame.button:Show()
-							else
-								local itemLink = GnomeWorks:GetTradeSkillItemLink(entry.index)
-								local spellName = GnomeWorks:GetRecipeName(entry.recipeID)
-
-								cellFrame.text:SetFormattedText("|T%s:16:16:0:-2|t %s", GnomeWorks:GetTradeSkillIcon(entry.index) or "", spellName)
-
-								cellFrame.button:Hide()
-							end
-
-
-							local cr,cg,cb = 1,0,0
-
-							if entry.subGroup then
-								cr,cg,cb = 1,.82,0
-							else
-								if not entry.skillColor then
-									entry.skillColor = GnomeWorks:GetSkillColor(entry.index)
-								end
-
-								cr,cg,cb = entry.skillColor.r, entry.skillColor.g, entry.skillColor.b
-							end
-
-							cellFrame.text:SetTextColor(cr,cg,cb)
-						end,
-
-			["OnEnter"] =	function (cellFrame)
-								if cellFrame:GetParent().rowIndex == 0 then
-									GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
-									GameTooltip:ClearLines()
-									GameTooltip:AddLine("Recipe Name",1,1,1,true)
-
-									GameTooltip:AddLine("Left-click to Sort")
-									GameTooltip:AddLine("Right-click to Adjust Filterings")
-
-									GameTooltip:Show()
-								end
-							end,
-			["OnLeave"] = 	function()
-								GameTooltip:Hide()
-							end,
-		}, -- [2]
-		{
-			["font"] = "GameFontHighlightSmall",
-			["name"] = "Craftable",
-			["width"] = 60,
-			["align"] = "CENTER",
-			["bgcolor"] = colorBlack,
-			["tooltipText"] = "click to sort\rright-click to filter",
-			["dataField"]= "craftBag",
-			["sortCompare"] = function(a,b)
-				return (a.craftAlt or 0) - (b.craftAlt or 0)
-			end,
-			enabled = function()
-				return GnomeWorks.tradeID ~= 53428
-			end,
-			["OnClick"] = 	function(cellFrame, button, source)
-								if cellFrame:GetParent().rowIndex == 0 then
-									if button == "RightButton" then
-										local x, y = GetCursorPosition()
-										local uiScale = UIParent:GetEffectiveScale()
-
-										EasyMenu(craftFilterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
 									else
 										sf.sortInvert = (sf.SortCompare == cellFrame.header.sortCompare) and not sf.sortInvert
 
@@ -622,8 +522,92 @@ do
 										sf:Refresh()
 									end
 								end
-							end,
-			["draw"] =	function (rowFrame,cellFrame,entry)
+							end
+						end,
+			draw =	function (rowFrame,cellFrame,entry)
+						cellFrame.text:SetPoint("LEFT", cellFrame, "LEFT", entry.depth*8+4+12, 0)
+
+						if entry.subGroup then
+							if entry.subGroup.expanded then
+								cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
+								cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
+							else
+								cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
+								cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
+							end
+
+							cellFrame.text:SetFormattedText("%s (%d Recipes)",entry.name,#entry.subGroup.entries)
+							cellFrame.button:Show()
+						else
+							local itemLink = GnomeWorks:GetTradeSkillItemLink(entry.index)
+							local spellName = GnomeWorks:GetRecipeName(entry.recipeID)
+
+							cellFrame.text:SetFormattedText("|T%s:16:16:0:-2|t %s", GnomeWorks:GetTradeSkillIcon(entry.index) or "", spellName)
+
+							cellFrame.button:Hide()
+						end
+
+
+						local cr,cg,cb = 1,0,0
+
+						if entry.subGroup then
+							cr,cg,cb = 1,.82,0
+						else
+							if not entry.skillColor then
+								entry.skillColor = GnomeWorks:GetSkillColor(entry.index)
+							end
+
+							cr,cg,cb = entry.skillColor.r, entry.skillColor.g, entry.skillColor.b
+						end
+
+						cellFrame.text:SetTextColor(cr,cg,cb)
+					end,
+
+			OnEnter =	function (cellFrame)
+							if cellFrame:GetParent().rowIndex == 0 then
+								GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+								GameTooltip:ClearLines()
+								GameTooltip:AddLine("Recipe Name",1,1,1,true)
+
+								GameTooltip:AddLine("Left-click to Sort")
+								GameTooltip:AddLine("Right-click to Adjust Filterings")
+
+								GameTooltip:Show()
+							end
+						end,
+			OnLeave = 	function()
+							GameTooltip:Hide()
+						end,
+		}, -- [2]
+		{
+			font = "GameFontHighlightSmall",
+			name = "Craftable",
+			width = 60,
+			align = "CENTER",
+			sortCompare = function(a,b)
+				return (a.craftAlt or 0) - (b.craftAlt or 0)
+			end,
+			enabled = function()
+				return GnomeWorks.tradeID ~= 53428
+			end,
+			filterMenu = craftFilterMenu,
+			OnClick = 	function(cellFrame, button, source)
+							if cellFrame:GetParent().rowIndex == 0 then
+								if button == "RightButton" then
+									local x, y = GetCursorPosition()
+									local uiScale = UIParent:GetEffectiveScale()
+
+									EasyMenu(cellFrame.header.filterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
+								else
+									sf.sortInvert = (sf.SortCompare == cellFrame.header.sortCompare) and not sf.sortInvert
+
+									sf:HighlightColumn(cellFrame.header.name, sf.sortInvert)
+									sf.SortCompare = cellFrame.header.sortCompare
+									sf:Refresh()
+								end
+							end
+						end,
+			draw =	function (rowFrame,cellFrame,entry)
 							if entry.subGroup then
 								cellFrame.text:SetText("")
 								return
@@ -667,63 +651,63 @@ do
 							end
 						end,
 
-			["OnEnter"] =	function (cellFrame)
-								if cellFrame:GetParent().rowIndex == 0 then
-									GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
-									GameTooltip:ClearLines()
-									GameTooltip:AddLine("Craftability Counts",1,1,1,true)
+			OnEnter =	function (cellFrame)
+							if cellFrame:GetParent().rowIndex == 0 then
+								GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+								GameTooltip:ClearLines()
+								GameTooltip:AddLine("Craftability Counts",1,1,1,true)
 
-									GameTooltip:AddLine("Left-click to Sort")
-									GameTooltip:AddLine("Right-click to Adjust Filterings")
+								GameTooltip:AddLine("Left-click to Sort")
+								GameTooltip:AddLine("Right-click to Adjust Filterings")
 
-									GameTooltip:Show()
-								else
-									local entry = cellFrame:GetParent().data
+								GameTooltip:Show()
+							else
+								local entry = cellFrame:GetParent().data
 
-									if entry and entry.recipeID then
-										if GnomeWorksDB.vendorOnly[entry.recipeID] then
-											GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
-											GameTooltip:ClearLines()
-											GameTooltip:AddLine("Recipe Craftability",1,1,1,true)
-											GameTooltip:AddLine(GnomeWorks.player.."'s Inventory")
+								if entry and entry.recipeID then
+									if GnomeWorksDB.vendorOnly[entry.recipeID] then
+										GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+										GameTooltip:ClearLines()
+										GameTooltip:AddLine("Recipe Craftability",1,1,1,true)
+										GameTooltip:AddLine(GnomeWorks.player.."'s Inventory")
 
-											if entry.craftBag and entry.craftBag>0 then
-												GameTooltip:AddDoubleLine("|cffffff80bags",entry.craftBag)
-											end
-
-											GameTooltip:AddLine("\226\136\158 = unlimited through vendor")
-											GameTooltip:Show()
-
-										elseif entry.craftAlt and entry.craftAlt > 0 then
-											GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
-											GameTooltip:ClearLines()
-											GameTooltip:AddLine("Recipe Craftability",1,1,1,true)
-											GameTooltip:AddLine(GnomeWorks.player.."'s inventory")
-
-											if entry.craftBag and entry.craftBag>0 then
-												GameTooltip:AddDoubleLine("|cffffff80bags",entry.craftBag)
-											end
-
-											if entry.craftVendor and entry.craftVendor>0  then
-												GameTooltip:AddDoubleLine("|cff80ff80vendor",entry.craftVendor)
-											end
-
-											if entry.craftBank and entry.craftBank>0 then
-												GameTooltip:AddDoubleLine("|cffffa050bank",entry.craftBank)
-											end
-
-											if entry.craftAlt and entry.craftAlt>0 then
-												GameTooltip:AddDoubleLine("|cffff80ffalts",entry.craftAlt)
-											end
-
-											GameTooltip:Show()
+										if entry.craftBag and entry.craftBag>0 then
+											GameTooltip:AddDoubleLine("|cffffff80bags",entry.craftBag)
 										end
+
+										GameTooltip:AddLine("\226\136\158 = unlimited through vendor")
+										GameTooltip:Show()
+
+									elseif entry.craftAlt and entry.craftAlt > 0 then
+										GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+										GameTooltip:ClearLines()
+										GameTooltip:AddLine("Recipe Craftability",1,1,1,true)
+										GameTooltip:AddLine(GnomeWorks.player.."'s inventory")
+
+										if entry.craftBag and entry.craftBag>0 then
+											GameTooltip:AddDoubleLine("|cffffff80bags",entry.craftBag)
+										end
+
+										if entry.craftVendor and entry.craftVendor>0  then
+											GameTooltip:AddDoubleLine("|cff80ff80vendor",entry.craftVendor)
+										end
+
+										if entry.craftBank and entry.craftBank>0 then
+											GameTooltip:AddDoubleLine("|cffffa050bank",entry.craftBank)
+										end
+
+										if entry.craftAlt and entry.craftAlt>0 then
+											GameTooltip:AddDoubleLine("|cffff80ffalts",entry.craftAlt)
+										end
+
+										GameTooltip:Show()
 									end
 								end
-							end,
-			["OnLeave"] = 	function()
-								GameTooltip:Hide()
-							end,
+							end
+						end,
+			OnLeave = 	function()
+							GameTooltip:Hide()
+						end,
 		}, -- [3]
 	}
 
@@ -1144,10 +1128,10 @@ do
 
 
 		local buttons = {
-			{ label = "Add To Queue",  operation = AddToQueue, count = 1 },
-			{ label = "Queue All", operation = AddToQueue },
-			{ label = "Plugins", operation = ShowPlugins },
---			{ label = "Back", operation = PopRecipe },
+			{ text = "Add To Queue",  operation = AddToQueue, count = 1 },
+			{ text = "Queue All", operation = AddToQueue },
+			{ text = "Plugins", operation = ShowPlugins },
+--			{ text = "Back", operation = PopRecipe },
 		}
 		local position = 0
 
@@ -1167,7 +1151,7 @@ do
 			newButton:SetNormalFontObject("GameFontNormalSmall")
 			newButton:SetHighlightFontObject("GameFontHighlightSmall")
 
-			newButton:SetText(config.label)
+			newButton:SetText(config.text)
 
 			newButton.count = config.count
 			newButton:SetScript("OnClick", function(button) config.operation(button) end )

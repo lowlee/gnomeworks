@@ -267,7 +267,7 @@ do
 	function GnomeWorks:CreateDetailFrame(frame)
 		detailFrame = CreateFrame("Frame",nil,frame)
 
-		detailFrame.textScroll = CreateFrame("ScrollFrame", nil, detailFrame)
+		detailFrame.textScroll = CreateFrame("ScrollFrame", "GWDetailFrame", detailFrame)
 
 
 
@@ -293,43 +293,50 @@ do
 
 
 
-		detailFrame.textScroll:SetScript("OnScrollRangeChanged", function(self, xRange, yRange)
-			detailFrame.maxScroll =  yRange
+--		detailFrame.textScroll:SetScript("OnVerticalScroll", function(frame, value) print(value) end)
+
+		detailFrame.textScroll:SetScript("OnScrollRangeChanged", function(frame, xRange, yRange)
+--		print(frame, frame.maxScroll, yRange)
+			frame.maxScroll =  yRange
+			frame.scroll = 0
+
+			frame:SetVerticalScroll(frame.scroll)
+		end)
+--[[
+		detailFrame.textScroll:SetScript("OnEnter", function(frame)
+			detailFrame.textScroll:SetVerticalScroll(detailFrame.maxScroll)
 		end)
 
+		detailFrame.textScroll:SetScript("OnLeave", function(frame)
+			detailFrame.textScroll:SetVerticalScroll(0)
+		end)
+]]
+		detailFrame.textScroll:SetScript("OnMouseWheel", function(frame, value)
+--			print(frame, value, frame.scroll, frame.maxScroll)
 
+			frame.scroll = frame.scroll - value * 16
+			if frame.scroll < 0 then
+				frame.scroll = 0
+			end
+
+			if frame.scroll > frame.maxScroll then
+				frame.scroll = frame.maxScroll
+			end
+
+			frame:SetVerticalScroll(frame.scroll)
+		end)
+
+		detailFrame.textScroll:EnableMouseWheel(true)
 		detailFrame.textScroll:EnableMouse(true)
 
-		detailFrame.maxScroll = 0
+		detailFrame.textScroll.maxScroll = 0
+		detailFrame.textScroll.scroll = 0
 
 		detailFrame.textScroll:SetVerticalScroll(0)
 
 
 		local parentFrame = detailFrame.scrollChild
 
---[[
-		local linkIcon = CreateFrame("Button",nil,detailFrame)
-
-		linkIcon:EnableMouse(true)
-
-		linkIcon:SetWidth(16)
-		linkIcon:SetHeight(16)
-
-		linkIcon:SetPoint("TOPRIGHT",-3,-3)
-
-		local normalTexture = linkIcon:CreateTexture(nil,"OVERLAY")
-		normalTexture:SetTexture("Interface\\TradeSkillFrame\\UI-TradeSkill-LinkButton")
-		normalTexture:SetTexCoord(0,1,0,.5)
-
-		linkIcon:SetNormalTexture("Interface\\TradeSkillFrame\\UI-TradeSkill-LinkButton")
-
-		local highlightTexture = linkIcon:CreateTexture(nil,"OVERLAY")
-		highlightTexture:SetTexture("Interface\\TradeSkillFrame\\UI-TradeSkill-LinkButton")
-		highlightTexture:SetTexCoord(0,1,0.5,1.0)
-		highlightTexture:SetBlendMode("ADD")
-
-		linkIcon:SetHighlightTexture(highlightTexture)
-]]
 
 		local detailIcon = CreateFrame("Button",nil,detailFrame)
 
@@ -413,48 +420,90 @@ do
 	-- scrolling part below
 
 
-		local toolsLabel = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-		toolsLabel:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 0,0)
-		toolsLabel:SetPoint("RIGHT", -5,0)
-		toolsLabel:SetHeight(0)
-		toolsLabel:SetJustifyH("LEFT")
-		toolsLabel:SetJustifyV("TOP")
-		toolsLabel:SetTextColor(1,1,1)
-
-		local cooldownLabel = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-		cooldownLabel:SetPoint("TOPLEFT", toolsLabel, "BOTTOMLEFT", 0,0)
-		cooldownLabel:SetPoint("RIGHT", -5,0)
-		cooldownLabel:SetHeight(0)
-		cooldownLabel:SetJustifyH("LEFT")
-		cooldownLabel:SetJustifyV("TOP")
-		cooldownLabel:SetTextColor(1,1,1)
-
-		local descriptionLabel = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-		descriptionLabel:SetPoint("TOPLEFT", cooldownLabel, "BOTTOMLEFT", 0,0)
-		descriptionLabel:SetWidth(detailsWidth - 10)
-		descriptionLabel:SetHeight(0)
-		descriptionLabel:SetJustifyH("LEFT")
-		descriptionLabel:SetJustifyV("TOP")
-		descriptionLabel:SetTextColor(1,1,1)
+		detailFrame.infoFunctionList = {}
 
 
-		local descriptionLabelRight = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-		descriptionLabelRight:SetPoint("TOPLEFT", cooldownLabel, "BOTTOMLEFT", 0,0)
-		descriptionLabelRight:SetWidth(detailsWidth - 10)
-		descriptionLabelRight:SetHeight(0)
-		descriptionLabelRight:SetJustifyH("RIGHT")
-		descriptionLabelRight:SetJustifyV("TOP")
-		descriptionLabelRight:SetTextColor(1,1,1)
+		function detailFrame:RegisterInfoFunction(func, plugin)
+			local descriptionLabel = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+			descriptionLabel:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 0,0)
+			descriptionLabel:SetWidth(detailsWidth - 10)
+			descriptionLabel:SetHeight(0)
+			descriptionLabel:SetJustifyH("LEFT")
+			descriptionLabel:SetJustifyV("TOP")
+			descriptionLabel:SetTextColor(1,1,1)
 
 
+			local descriptionLabelRight = parentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+			descriptionLabelRight:SetPoint("TOPLEFT", descriptionLabel, "TOPLEFT", 0,0)
+			descriptionLabelRight:SetWidth(detailsWidth - 10)
+			descriptionLabelRight:SetHeight(0)
+			descriptionLabelRight:SetJustifyH("RIGHT")
+			descriptionLabelRight:SetJustifyV("TOP")
+			descriptionLabelRight:SetTextColor(1,1,1)
 
-		detailFrame.textScroll:SetScript("OnEnter", function(frame)
-			detailFrame.textScroll:SetVerticalScroll(detailFrame.maxScroll)
+			local new = { func = func, plugin = plugin, leftFS = descriptionLabel, rightFS=descriptionLabelRight }
+
+			table.insert(detailFrame.infoFunctionList, new)
+		end
+
+
+		detailFrame:RegisterInfoFunction(function(index,recipeID,left,right)
+			if self:GetTradeSkillTools(index) then
+				left = left .. string.format("%s %s\n",REQUIRES_LABEL,BuildColoredListString(self:GetTradeSkillTools(index)))
+				right = right .. "\n"
+			end
+			return left,right
 		end)
 
-		detailFrame.textScroll:SetScript("OnLeave", function(frame)
-			detailFrame.textScroll:SetVerticalScroll(0)
+		detailFrame:RegisterInfoFunction(function(index,recipeID,left,right)
+			if self:GetTradeSkillCooldown(index) then
+				left = left .. string.format("%s %s\n",COOLDOWN_REMAINING,SecondsToTime(self:GetTradeSkillCooldown(index)))
+				right = right .. "\n"
+			end
+
+			return left,right
 		end)
+
+		detailFrame:RegisterInfoFunction(function(index,recipeID,left,right)
+			local link = self:GetTradeSkillItemLink(index)
+
+			if strfind(link,"item:") then -- or strfind(link,"spell:") or strfind(link,"enchant:") then
+				local firstLine = 2
+
+				if strfind(link,"spell:") or strfind(link,"enchant:") then
+					firstLine = 4
+				end
+
+				tooltipScanner:SetOwner(frame, "ANCHOR_NONE")
+				tooltipScanner:SetHyperlink(link)
+
+				local tiplines = tooltipScanner:NumLines()
+
+
+
+				for i=firstLine, tiplines do
+					local fs = getglobal("GWParsingTooltipTextLeft"..i)
+
+					local r,g,b,a = fs:GetTextColor()
+
+					left = string.format("%s|c%2x%2x%2x%2x%s|r\n",left,a*255,r*255,g*255,b*255,fs:GetText())
+
+
+					local fs = getglobal("GWParsingTooltipTextRight"..i)
+
+					local r,g,b,a = fs:GetTextColor()
+
+					right = string.format("%s|c%2x%2x%2x%2x%s|r\n",right,a*255,r*255,g*255,b*255,fs:GetText() or "")
+				end
+			else
+				left = left..self:GetTradeSkillDescription(index).."\n"
+				right = right .. "\n"
+			end
+
+			return left,right
+		end)
+
+
 
 
 		function GnomeWorks:HideDetails()
@@ -497,63 +546,27 @@ do
 
 			detailNameLabel:SetText(skillName)
 
-			if self:GetTradeSkillTools(index) then
-				toolsLabel:SetFormattedText("%s %s\n",REQUIRES_LABEL,BuildColoredListString(self:GetTradeSkillTools(index)))
-				toolsLabel:Show()
-			else
-				toolsLabel:Hide()
-				toolsLabel:SetText("")
+			local pos = 0
+
+			for k,entry in pairs(detailFrame.infoFunctionList) do
+				local lineTextLeft,lineTextRight = "",""
+
+				lineTextLeft, lineTextRight = entry.func(index, recipeID, lineTextLeft, lineTextRight)
+
+				entry.leftFS:SetText(lineTextLeft)
+				entry.rightFS:SetText(lineTextRight)
+
+				entry.leftFS:SetPoint("TOPLEFT", 0,-pos)
+
+				pos = pos + math.max(entry.leftFS:GetStringHeight(), entry.rightFS:GetStringHeight())
+
+	--			descriptionLabel:Show()
+	--			descriptionLabelRight:Show()
 			end
 
-			if self:GetTradeSkillCooldown(index) then
-				cooldownLabel:SetFormattedText("%s %s\n",COOLDOWN_REMAINING,SecondsToTime(self:GetTradeSkillCooldown(index)))
-				cooldownLabel:Show()
-			else
-				cooldownLabel:Hide()
-				cooldownLabel:SetText("")
-			end
-
-			local link = self:GetTradeSkillItemLink(index)
-
-			if strfind(link,"item:") or strfind(link,"spell:") then
---print(link)
-				tooltipScanner:SetOwner(frame, "ANCHOR_NONE")
-				tooltipScanner:SetHyperlink(link)
---tooltipScanner:Hide()
-
-				local tiplines = tooltipScanner:NumLines()
---print(tiplines)
-
-				local lineText,lineTextRight = "",""
-
-				for i=2, tiplines do
-					local fs = getglobal("GWParsingTooltipTextLeft"..i)
-
-					local r,g,b,a = fs:GetTextColor()
-
-					lineText = string.format("%s|c%2x%2x%2x%2x%s|r\n",lineText,a*255,r*255,g*255,b*255,fs:GetText())
 
 
-					local fs = getglobal("GWParsingTooltipTextRight"..i)
 
-					local r,g,b,a = fs:GetTextColor()
-
-					lineTextRight = string.format("%s|c%2x%2x%2x%2x%s|r\n",lineTextRight,a*255,r*255,g*255,b*255,fs:GetText() or "")
-
---print(i,lineText)
-				end
-
-				descriptionLabel:SetText(lineText)
-				descriptionLabelRight:SetText(lineTextRight)
-
-				descriptionLabel:Show()
-				descriptionLabelRight:Show()
-			else
-				descriptionLabel:SetText(self:GetTradeSkillDescription(index))
-				descriptionLabelRight:SetText("")
-				descriptionLabelRight:Hide()
-				descriptionLabel:Show()
-			end
 		end
 
 

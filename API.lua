@@ -63,6 +63,10 @@ do
 		return self.MainWindow
 	end
 
+	function GnomeWorks:GetDetailFrame()
+		return self.detailFrame
+	end
+
 
 	function GnomeWorks:GetSkillListFrame()
 		return self.skillFrame

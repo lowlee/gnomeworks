@@ -32,7 +32,7 @@ do
 
 		local costFilterParameters = {
 			hideUnprofitable = {
-				label = "Hide Unprofitable",
+				text = "Hide Unprofitable",
 				enabled = false,
 				func = function(entry)
 					return (entry.value or 0) < (entry.cost or 0)
@@ -386,19 +386,19 @@ do
 
 			scrollFrame = GnomeWorks:GetSkillListScrollFrame()
 
-			scrollFrame:RegisterRowUpdate(updateData, pluginToken)
+			scrollFrame:RegisterRowUpdate(updateData, plugin)
 
-			valueColumn = scrollFrame:AddColumn(valueColumnHeader, pluginToken)
-			costColumn = scrollFrame:AddColumn(costColumnHeader, pluginToken)
+			valueColumn = scrollFrame:AddColumn(valueColumnHeader, plugin)
+			costColumn = scrollFrame:AddColumn(costColumnHeader, plugin)
 
 			GnomeWorks:CreateFilterMenu(costFilterParameters, costFilterMenu, costColumnHeader)
 
 
 
 			reagentScrollFrame = GnomeWorks:GetReagentListScrollFrame()
-			reagentScrollFrame:RegisterRowUpdate(updateReagentData, pluginToken)
+			reagentScrollFrame:RegisterRowUpdate(updateReagentData, plugin)
 
-			reagentCostColumn = reagentScrollFrame:AddColumn(reagentCostColumnHeader, pluginToken)
+			reagentCostColumn = reagentScrollFrame:AddColumn(reagentCostColumnHeader, plugin)
 
 	--		GnomeWorks:CreateFilterMenu(costFilterParameters, reagentCostFilterMenu, reagentCostColumnHeader)
 
