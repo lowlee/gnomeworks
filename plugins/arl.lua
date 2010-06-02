@@ -10,288 +10,6 @@ do
 
 		if ARL then
 
-
-			local L			= LibStub("AceLocale-3.0"):GetLocale("Ackis Recipe List")
-			local BFAC		= LibStub("LibBabble-Faction-3.0"):GetLookupTable()
-			local Player	= ARL.Player
-
-
-			local FACTION_HORDE			= BFAC["Horde"]
-			local FACTION_ALLIANCE		= BFAC["Alliance"]
-			local FACTION_NEUTRAL		= BFAC["Neutral"]
-
-
-			local A_TRAINER, A_VENDOR, A_MOB, A_QUEST, A_SEASONAL, A_REPUTATION, A_WORLD_DROP, A_CUSTOM, A_PVP, A_MAX = 1, 2, 3, 4, 5, 6, 7, 8, 9, 9
-
-	-- ripped from arl frame.lua
-			local function GetTipFactionInfo(comp_faction)
-				local display_tip = false
-				local color = ARL:hexcolor("NEUTRAL")
-				local faction = FACTION_NEUTRAL
-
-				if comp_faction == FACTION_HORDE then
-					color = ARL:hexcolor("HORDE")
-
-					if Player["Faction"] == FACTION_HORDE then
-						display_tip = true
-					else
-						faction = FACTION_HORDE
-					end
-				elseif comp_faction == FACTION_ALLIANCE then
-					color = ARL:hexcolor("ALLIANCE")
-
-					if Player["Faction"] == FACTION_ALLIANCE then
-						display_tip = true
-					else
-						faction = FACTION_ALLIANCE
-					end
-				else
-					display_tip = true
-				end
-				return display_tip, color, faction
-			end
-
-			local function GenerateAcquireText(recipe_entry)
-				local leftText, rightText = "", ""
-
-				local rep_list = ARL.reputation_list
-
-				for index, acquire in pairs(recipe_entry["Acquire"]) do
-					local acquire_type = acquire["Type"]
-					local display_tip = false
-
-					if acquire_type == A_TRAINER then
-						local trainer = ARL.trainer_list[acquire["ID"]]
-
-						color_1 = ARL:hexcolor("TRAINER")
-						display_tip, color_2 = GetTipFactionInfo(trainer["Faction"])
-
-						if display_tip then
-							local coord_text = ""
-
-							if trainer["Coordx"] ~= 0 and trainer["Coordy"] ~= 0 then
-								coord_text = "(" .. trainer["Coordx"] .. ", " .. trainer["Coordy"] .. ")"
-							end
-							leftText = leftText .. "|cff" .. color_1 .. L["Trainer"] .. "|r\n"
-							rightText = rightText .. "|cff" .. color_2 .. trainer["Name"] .. "|r\n"
-
-		--					ttAdd(0, -2, false, L["Trainer"], color_1, trainer["Name"], color_2)
-
-							color_1 = ARL:hexcolor("NORMAL")
-							color_2 = ARL:hexcolor("HIGH")
-
-		--					ttAdd(1, -2, true, trainer["Location"], color_1, coord_text, color_2)
-
-							leftText = leftText .. "|cff" .. color_1 .. trainer["Location"] .. "|r\n"
-							rightText = rightText .. "|cff" .. color_2 .. coord_text .. "|r\n"
-						end
-					elseif acquire_type == A_VENDOR then
-						local vendor = ARL.vendor_list[acquire["ID"]]
-						local faction
-
-						color_1 = ARL:hexcolor("VENDOR")
-						display_tip, color_2, faction = GetTipFactionInfo(vendor["Faction"])
-
-						if display_tip then
-							local coord_text = ""
-
-							if vendor["Coordx"] ~= 0 and vendor["Coordy"] ~= 0 then
-								coord_text = "(" .. vendor["Coordx"] .. ", " .. vendor["Coordy"] .. ")"
-							end
-
-							leftText = leftText .. "|cff" .. color_1 .. L["Vendor"] .. "|r\n"
-							rightText = rightText .. "|cff" .. color_2 .. vendor["Name"] .. "|r\n"
-
-		--					ttAdd(0, -1, false, L["Vendor"], color_1, vendor["Name"], color_2)
-
-							color_1 = ARL:hexcolor("NORMAL")
-							color_2 = ARL:hexcolor("HIGH")
-
-							leftText = leftText .. "|cff" .. color_1 .. vendor["Location"] .. "|r\n"
-							rightText = rightText .. "|cff" .. color_2 .. coord_text .. "|r\n"
-
-		--					ttAdd(1, -2, true, vendor["Location"], color_1, coord_text, color_2)
-						elseif faction then
-							leftText = leftText .. "|cff" .. color_1 .. faction.." "..L["Vendor"] .. "|r\n"
-							rightText = rightText .. "\n"
-		--					ttAdd(0, -1, false, faction.." "..L["Vendor"], color_1)
-						end
-					elseif acquire_type == A_MOB then
-						local mob = ARL.mob_list[acquire["ID"]]
-						local coord_text = ""
-
-						if mob["Coordx"] ~= 0 and mob["Coordy"] ~= 0 then
-							coord_text = "(" .. mob["Coordx"] .. ", " .. mob["Coordy"] .. ")"
-						end
-						color_1 = ARL:hexcolor("MOBDROP")
-						color_2 = ARL:hexcolor("HORDE")
-
-						leftText = leftText .. "|cff" .. color_1 .. L["Mob Drop"] .. "|r\n"
-						rightText = rightText .. "|cff" .. color_2 .. mob["Name"] .. "|r\n"
-
-		--				ttAdd(0, -1, false, L["Mob Drop"], color_1, mob["Name"], color_2)
-
-						color_1 = ARL:hexcolor("NORMAL")
-						color_2 = ARL:hexcolor("HIGH")
-
-						leftText = leftText .. "|cff" .. color_1 .. mob["Location"] .. "|r\n"
-						rightText = rightText .. "|cff" .. color_2 .. coord_text .. "|r\n"
-
-		--				ttAdd(1, -2, true, mob["Location"], color_1, coord_text, color_2)
-					elseif acquire_type == A_QUEST then
-						local quest = ARL.quest_list[acquire["ID"]]
-
-						if quest then
-							local faction
-
-							color_1 = ARL:hexcolor("QUEST")
-							display_tip, color_2, faction = GetTipFactionInfo(quest["Faction"])
-
-							if display_tip then
-								local coord_text = ""
-
-								if quest["Coordx"] ~= 0 and quest["Coordy"] ~= 0 then
-									coord_text = "(" .. quest["Coordx"] .. ", " .. quest["Coordy"] .. ")"
-								end
-								leftText = leftText .. "|cff" .. color_1 .. L["Quest"] .. "|r\n"
-								rightText = rightText .. "|cff" .. color_2 ..  quest["Name"] .. "|r\n"
-
-		--						ttAdd(0, -1, false, L["Quest"], color_1, quest["Name"], color_2)
-
-								color_1 = ARL:hexcolor("NORMAL")
-								color_2 = ARL:hexcolor("HIGH")
-
-								leftText = leftText .. "|cff" .. color_1 ..quest["Location"] .. "|r\n"
-								rightText = rightText .. "|cff" .. color_2 ..  coord_text .. "|r\n"
-
-		--						ttAdd(1, -2, true, quest["Location"], color_1, coord_text, color_2)
-							elseif faction then
-								leftText = leftText .. "|cff" .. color_1 .. faction.." "..L["Quest"] .. "|r\n"
-								rightText = rightText .. "\n"
-		--						ttAdd(0, -1, false, faction.." "..L["Quest"], color_1)
-							end
-						end
-					elseif acquire_type == A_SEASONAL then
-						color_1 = ARL:hexcolor("SEASON")
-						leftText = leftText .. "|cff" .. color_1 .. ARL.seasonal_list[acquire["ID"]]["Name"] .. "|r\n"
-						rightText = rightText .. "\n"
-		--				ttAdd(0, -1, 0, SEASONAL_CATEGORY, color_1, ARL.seasonal_list[acquire["ID"]]["Name"], color_1)
-					elseif acquire_type == A_REPUTATION then
-						local repvendor = ARL.vendor_list[acquire["RepVendor"]]
-						local coord_text = ""
-
-						if repvendor["Coordx"] ~= 0 and repvendor["Coordy"] ~= 0 then
-							coord_text = "(" .. repvendor["Coordx"] .. ", " .. repvendor["Coordy"] .. ")"
-						end
-						local repfac = rep_list[acquire["ID"]]
-						local repname = repfac["Name"]
-
-						color_1 = ARL:hexcolor("REP")
-						color_2 = ARL:hexcolor("NORMAL")
-
-						leftText = leftText .. "|cff" .. color_1 .. _G.REPUTATION .. "|r\n"
-						rightText = rightText .. "|cff" .. color_2 ..  repname .. "|r\n"
-
-		--				ttAdd(0, -1, false, _G.REPUTATION, color_1, repname, color_2)
-
-						local rStr = ""
-						local rep_level = acquire["RepLevel"]
-
-						if rep_level == 0 then
-							rStr = FACTION_NEUTRAL
-							color_1 = ARL:hexcolor("NEUTRAL")
-						elseif rep_level == 1 then
-							rStr = BFAC["Friendly"]
-							color_1 = ARL:hexcolor("FRIENDLY")
-						elseif rep_level == 2 then
-							rStr = BFAC["Honored"]
-							color_1 = ARL:hexcolor("HONORED")
-						elseif rep_level == 3 then
-							rStr = BFAC["Revered"]
-							color_1 = ARL:hexcolor("REVERED")
-						else
-							rStr = BFAC["Exalted"]
-							color_1 = ARL:hexcolor("EXALTED")
-						end
-						display_tip, color_2 = GetTipFactionInfo(repvendor["Faction"])
-
-						if display_tip then
-							leftText = leftText .. "|cff" .. color_1 .. rStr .. "|r\n"
-							rightText = rightText .. "|cff" .. color_2 ..  repvendor["Name"] .. "|r\n"
-
-		--					ttAdd(1, -2, false, rStr, color_1, repvendor["Name"], color_2)
-
-							color_1 = ARL:hexcolor("NORMAL")
-							color_2 = ARL:hexcolor("HIGH")
-
-							leftText = leftText .. "|cff" .. color_1 .. repvendor["Location"] .. "|r\n"
-							rightText = rightText .. "|cff" .. color_2 ..  coord_text .. "|r\n"
-
-		--					ttAdd(2, -2, true, repvendor["Location"], color_1, coord_text, color_2)
-						end
-					elseif acquire_type == A_WORLD_DROP then
-						local acquire_id = acquire["ID"]
-
-						if acquire_id == 1 then
-							color_1 = ARL:hexcolor("COMMON")
-						elseif acquire_id == 2 then
-							color_1 = ARL:hexcolor("UNCOMMON")
-						elseif acquire_id == 3 then
-							color_1 = ARL:hexcolor("RARE")
-						elseif acquire_id == 4 then
-							color_1 = ARL:hexcolor("EPIC")
-						else
-							color_1 = ARL:hexcolor("NORMAL")
-						end
-		--				ttAdd(0, -1, false, L["World Drop"], color_1)
-						leftText = leftText .. "|cff" .. color_1 .. L["World Drop"] .. "|r\n"
-						rightText = rightText .. "\n"
-					elseif acquire_type == A_CUSTOM then
-		--				ttAdd(0, -1, false, ARL.custom_list[acquire["ID"]]["Name"], ARL:hexcolor("NORMAL"))
-						leftText = leftText .. "|cff" .. ARL:hexcolor("NORMAL") .. ARL.custom_list[acquire["ID"]]["Name"] .. "|r\n"
-						rightText = rightText .. "\n"
-					elseif acquire_type == A_PVP then
-						local vendor = ARL.vendor_list[acquire["ID"]]
-						local faction
-
-						color_1 = ARL:hexcolor("VENDOR")
-						display_tip, color_2, faction = GetTipFactionInfo(vendor["Faction"])
-
-						if display_tip then
-							local coord_text = ""
-
-							if vendor["Coordx"] ~= 0 and vendor["Coordy"] ~= 0 then
-								coord_text = "(" .. vendor["Coordx"] .. ", " .. vendor["Coordy"] .. ")"
-							end
-		--					ttAdd(0, -1, false, L["Vendor"], color_1, vendor["Name"], color_2)
-
-							leftText = leftText .. "|cff" .. color_1 .. L["Vendor"] .. "|r\n"
-							rightText = rightText .. "|cff" .. color_2 ..  vendor["Name"] .. "|r\n"
-
-							color_1 = ARL:hexcolor("NORMAL")
-							color_2 = ARL:hexcolor("HIGH")
-
-							leftText = leftText .. "|cff" .. color_1 .. vendor["Location"] .. "|r\n"
-							rightText = rightText .. "|cff" .. color_2 ..  coord_text .. "|r\n"
-
-		--					ttAdd(1, -2, true, vendor["Location"], color_1, coord_text, color_2)
-						elseif faction then
-		--					ttAdd(0, -1, false, faction.." "..L["Vendor"], color_1)
-							leftText = leftText .. "|cff" .. color_1 .. faction.." "..L["Vendor"] .. "|r\n"
-							rightText = rightText .. "\n"
-						end
-						--[===[@alpha@
-					else	-- Unhandled
-						ttAdd(0, -1, 0, L["Unhandled Recipe"], ARL:hexcolor("NORMAL"))
-						--@end-alpha@]===]
-					end
-				end
-
-				return leftText, rightText
-			end
-
-
-
 			local GWFrame = GnomeWorks:GetMainFrame()
 			local GWScrollFrame = GnomeWorks:GetSkillListScrollFrame()
 			local recipeFilterMenu = GWScrollFrame.filterMenu
@@ -331,17 +49,18 @@ do
 					[12] = "Discovery",
 				}
 
+				local sourceFlagBitValue = {}
+
 				local ARLFilterParameters = {
 					{
 						text = "ARL: Filter by Recipe Source",
 						enabled = false,
 						func = function(entry)
-							if entry and entry.arlData and entry.arlData.Flags then
-								local arlFlag = entry.arlData.Flags
+							if entry and entry.arlFlags then
+								local arlFlag = entry.arlFlags.common1
 
 								for flag, value in pairs(ARLSourceFlags) do
-
-									if arlFlag[flag] then
+									if bit.band(sourceFlagBitValue[flag], arlFlag)==sourceFlagBitValue[flag] then
 										return false
 									end
 								end
@@ -372,6 +91,8 @@ do
 
 					ARLSourceFlags[flag] = true
 
+					sourceFlagBitValue[flag] = math.pow(2,flag-1)
+
 					table.insert(ARLSourceSubMenu, button)
 				end
 
@@ -387,32 +108,54 @@ do
 
 			local function updateData(scrollFrame, entry)
 
-				ARL:InitializeRecipe(GetTradeSkillLine())
+				ARL:InitializeProfession(GetTradeSkillLine())
 
 				if not entry.subGroup then
-					entry.arlData = ARL.recipe_list[entry.recipeID]
+					entry.arlFlags = ARL:GetRecipeData(entry.recipeID,"flags")
 				end
+			end
+
+--
+
+--function ARL:DisplayAcquireData(recipe_id, acquire_id, location, quality_color, addline_func)
+
+			local leftInfoText, rightInfoText
+
+--[[
+local function ttAdd(
+			leftPad,		-- number of times to pad two spaces on left side
+			textSize,		-- add to or subtract from addon.db.profile.frameopts.fontsize to get fontsize
+			narrow,			-- if 1, use ARIALN instead of FRITZQ
+			str1,			-- left-hand string
+			hexcolor1,		-- hex color code for left-hand side
+			str2,			-- if present, this is the right-hand string
+			hexcolor2)		-- if present, hex color code for right-hand side
+]]
+
+			local function constructInfoText(leftPad, textSize, narrow, leftText, leftColor, rightText, rightColor)
+				leftInfoText = string.format("%s|cff%s%s|r\n",leftInfoText, leftColor or "ffffff", leftText or "")
+				rightInfoText = string.format("%s|cff%s%s|r\n",rightInfoText, rightColor or "ffffff", rightText or "")
 			end
 
 
 			GWDetailFrame:RegisterInfoFunction(function(index,recipeID,left,right)
-				local recipe = ARL.recipe_list[recipeID]
+				if ARL.DisplayAcquireData then
 
-				left = left .. "ARL Recipe Source:\n"
-				right = right .. "\n"
+					leftInfoText = left .. "ARL Recipe Source:\n"
+					rightInfoText = right .. "\n"
 
+					ARL:DisplayAcquireData(recipeID, nil, nil, "|cffffffff", constructInfoText)
 
-				if recipe then
-					local l,r = GenerateAcquireText(recipe)
-
-					return left..l, right..r
-				else
-					return left,right
+					return leftInfoText, rightInfoText
 				end
-
 			end)
 
 
+
+
+			if ARL.InitializeLookups then
+				ARL:InitializeLookups()
+			end
 
 
 
