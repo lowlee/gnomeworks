@@ -144,7 +144,7 @@ local function ttAdd(
 					leftInfoText = left .. "ARL Recipe Source:\n"
 					rightInfoText = right .. "\n"
 
-					ARL:DisplayAcquireData(recipeID, nil, nil, "|cffffffff", constructInfoText)
+					ARL:DisplayAcquireData(recipeID, nil, nil, constructInfoText)
 
 					return leftInfoText, rightInfoText
 				end

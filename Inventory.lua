@@ -41,59 +41,6 @@ do
 	end
 
 
-	function GnomeWorks:MERCHANT_SHOW(...)
-		for i=1,GetMerchantNumItems() do
-			local link = GetMerchantItemLink(i)
-
-			if link then
-				local itemID = string.match(link, "item:(%d+)")
-				local spoofedRecipeID = itemID+200000
-
-				itemID = tonumber(itemID)
-
-				if GnomeWorks.data.reagentUsage[itemID] and not GnomeWorksDB.vendorItems[itemID] and not GnomeWorksDB.results[spoofedRecipeID] then
-					local name, texture, price, quantity, numAvailable, isUsable, extendedCost = GetMerchantItemInfo(i)
-
-					if numAvailable == -1 then
-						local honorPoints, arenaPoints, itemCount = GetMerchantItemCostInfo(i)
-
-						if not extendedCost then
-							print("|c008080ffGnomeWorks recording vendor item: ",link)
-							GnomeWorksDB.vendorItems[itemID] = true
-						elseif arenaPoints == 0 and honorPoints == 0 then
-							local reagents = {}
-							GnomeWorksDB.results[spoofedRecipeID] = { [itemID] = quantity }
-							GnomeWorksDB.names[spoofedRecipeID] = "Purchase "..GetItemInfo(itemID)
-							GnomeWorksDB.tradeIDs[spoofedRecipeID] = 100001
-
-							for n=1,itemCount do
-								local itemTexture, itemValue, itemLink = GetMerchantItemCostItem(i, n)
-
-								local costItemID = tonumber(string.match(itemLink,"item:(%d+)"))
-
-								reagents[costItemID] = itemValue
-
-								GnomeWorks:AddToReagentCache(costItemID, spoofedRecipeID, itemValue)
-							end
-
-							GnomeWorksDB.reagents[spoofedRecipeID] = reagents
-
-
-							GnomeWorks:AddToItemCache(itemID, spoofedRecipeID, quantity)
-
-
-							print("|c008080ffGnomeWorks recording vendor conversion for item: ",link)
-						end
-					end
-				end
-			end
-		end
-	end
-
-	function GnomeWorks:MERCHANT_UPDATE(...)
-		self:MERCHANT_SHOW(...)
-	end
-
 
 	local function CalculateRecipeCrafting(craftabilityTable, reagents, player, containerList)
 		local numCraftable = LARGE_NUMBER

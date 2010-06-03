@@ -38,7 +38,7 @@ do
 	-- To fix Blizzard's bug caused by the new "self:SetFrameLevel(2);"
 	hooksecurefunc("UIDropDownMenu_CreateFrames", FixMenuFrameLevels)
 
-
+--[[
 	function GnomeWorks:ConvertRecipeDB()
 		local reagentTable, itemTable, tradeTable = {}, {}, {}
 
@@ -73,7 +73,7 @@ do
 
 		GnomeWorks.data.recipeDB = recipeDB
 	end
-
+]]
 
 	function memUsage(t)
 		local slots = 0
@@ -93,9 +93,13 @@ do
 		return bytes + size * 40
 	end
 
+	function GnomeWorks:print(...)
+		print("|cffa080f0GnomeWorks:",...)
+	end
+
 
 	function GnomeWorks:OnLoad()
-		print("|cff80ff80GnomeWorks (r"..VERSION..") Initializing")
+		self:print("Initializing (r"..VERSION..")")
 
 		LoadAddOn("Blizzard_TradeSkillUI")
 
@@ -202,6 +206,8 @@ do
 
 
 		GnomeWorks:RegisterEvent("BAG_UPDATE")
+
+		GnomeWorks:RegisterEvent("BANKFRAME_OPENED")
 	end
 
 
