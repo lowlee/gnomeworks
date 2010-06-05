@@ -440,6 +440,12 @@ DebugSpam("done parsing skill list")
 		-- get the tradeID from the tradeName name (data collected earlier).
 		tradeID = tradeIDByName[tradeName]
 
+		if not tradeID then
+			self.scanInProgress = nil
+			return
+		end
+
+
 		if tradeID == 2656 then				-- stuff the rank info into the fake smelting link for this character
 			self.data.playerData[UnitName("player")].links[tradeID] = "|cffffd000|Htrade:2656:"..rank..":"..maxRank..":0:/|h["..GetSpellInfo(tradeID) .."]|h|r"			-- fake link for data collection purposes
 		end

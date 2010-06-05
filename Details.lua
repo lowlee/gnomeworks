@@ -467,7 +467,7 @@ do
 		detailFrame:RegisterInfoFunction(function(index,recipeID,left,right)
 			local link = self:GetTradeSkillItemLink(index)
 
-			if strfind(link,"item:") then -- or strfind(link,"spell:") or strfind(link,"enchant:") then
+			if link and strfind(link,"item:") then -- or strfind(link,"spell:") or strfind(link,"enchant:") then
 				local firstLine = 2
 
 				if strfind(link,"spell:") or strfind(link,"enchant:") then
@@ -496,7 +496,7 @@ do
 					right = string.format("%s|c%2x%2x%2x%2x%s|r\n",right,a*255,r*255,g*255,b*255,fs:GetText() or "")
 				end
 			else
-				left = left..self:GetTradeSkillDescription(index).."\n"
+				left = left..(self:GetTradeSkillDescription(index) or "").."\n"
 				right = right .. "\n"
 			end
 

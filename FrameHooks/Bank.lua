@@ -30,7 +30,7 @@ do
 
 		local itemType = GetItemFamily(itemID)
 
-		-- if item is can go into a special bag, prefer to place it in one of those first
+		-- if item can go into a special bag, prefer to place it in one of those first
 		if itemType then
 			for bag = 1, 4 do
 				local bagType = GetItemFamily(GetInventoryItemID(ContainerIDToInventoryID(bag)))
@@ -61,7 +61,7 @@ do
 		for bag = 0, 4 do
 			local bagType = bag==0 and 0 or GetItemFamily(GetInventoryItemID(ContainerIDToInventoryID(bag)))
 
-			if bagType and bagType == 0 or bit.band(bagType,itemType) == bagType then
+			if bagType == 0 then
 				for i = 1, GetContainerNumSlots(bag) do
 					local link = GetContainerItemLink(bag, i)
 
@@ -102,7 +102,7 @@ do
 				if link then
 					local itemID = tonumber(string.match(link, "item:(%d+)"))
 
-					local onHand = self:GetInventoryCount(itemID, self.player, "craftBag queue")
+					local onHand = self:GetInventoryCount(itemID, self.player, "craftedBag queue")
 
 					if onHand < 0 then
 						local count = -onHand
