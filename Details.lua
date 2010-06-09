@@ -22,10 +22,25 @@ do
 	local sf
 
 
-	local cbag = "|cffffff80"
-	local cvendor = "|cff80ff80"
-	local cbank =  "|cffffa050"
-	local calt = "|cffff80ff"
+	local itemColorVendor = {.25,1.0,.25}
+	local itemColorCrafted = {.25,.75,1.0}
+	local itemColorNormal = {1,1,1}
+
+	local inventoryIndex = { "bag", "vendor", "bank", "guildBank", "alt" }
+
+	local inventoryColors = {
+		bag = "|cffffff80",
+		vendor = "|cff80ff80",
+		bank =  "|cffffa050",
+		guildBank = "|cff5080ff",
+		alt = "|cffff80ff",
+	}
+
+	local inventoryTags = {}
+
+	for k,v in pairs(inventoryColors) do
+		inventoryTags[k] = v..k
+	end
 
 
 	local tooltipScanner = CreateFrame("GameTooltip", "GWParsingTooltip", getglobal("ANCHOR_NONE"), "GameTooltipTemplate")
@@ -34,7 +49,7 @@ do
 
 
 	local function columnControl(cellFrame,button,source)
-		local filterMenuFrame = getglobal("GnomeWorksFilterMenuFrame")
+		local filterMenuFrame = GnomeWorksFilterMenuFrame
 		local scrollFrame = cellFrame:GetParent():GetParent()
 
 		if button == "RightButton" then
@@ -59,12 +74,31 @@ do
 			name= "#",
 			align = "CENTER",
 			width = 25,
-			bgcolor = colorBlack,
-			tooltipText = "click to sort\rright-click to filter",
-			dataField = "numNeeded",
 			sortCompare = function(a,b)
 				return (a.numNeeded or 0) - (b.numNeeded or 0)
 			end,
+			dataField = "numNeeded",
+			OnEnter = 	function(cellFrame)
+							if cellFrame:GetParent().rowIndex == 0 then
+								GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+								GameTooltip:ClearLines()
+								GameTooltip:AddLine("# Required",1,1,1,true)
+
+								GameTooltip:AddLine("Left-click to Sort")
+--								GameTooltip:AddLine("Right-click to Adjust Filterings")
+
+								GameTooltip:Show()
+							else
+								local entry = cellFrame:GetParent().data
+
+								if entry and entry.id then
+									GameTooltip:SetOwner(reagentFrame, "ANCHOR_RIGHT")
+									GameTooltip:SetHyperlink("item:"..entry.id)
+									GameTooltip:Show()
+								end
+							end
+						end,
+
 			OnClick = function(cellFrame, button, source)
 				if cellFrame:GetParent().rowIndex==0 then
 					columnControl(cellFrame, button, source)
@@ -77,7 +111,6 @@ do
 				return (a.index or 0) - (b.index or 0)
 			end,
 			width = 100,
-			tooltipText = "click to sort\rright-click to filter",
 			OnClick = function(cellFrame, button, source)
 				if cellFrame:GetParent().rowIndex==0 then
 					columnControl(cellFrame, button, source)
@@ -93,64 +126,128 @@ do
 				end
 			end,
 			OnEnter = 	function(cellFrame)
-							local entry = cellFrame:GetParent().data
-							if entry and entry.id then
-								GameTooltip:SetOwner(reagentFrame, "ANCHOR_RIGHT")
-								GameTooltip:SetHyperlink("item:"..entry.id)
+							if cellFrame:GetParent().rowIndex == 0 then
+								GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+								GameTooltip:ClearLines()
+								GameTooltip:AddLine("Reagent",1,1,1,true)
+
+								GameTooltip:AddLine("Left-click to Sort")
+--								GameTooltip:AddLine("Right-click to Adjust Filterings")
+
 								GameTooltip:Show()
+							else
+								local entry = cellFrame:GetParent().data
+
+								if entry and entry.id then
+									GameTooltip:SetOwner(reagentFrame, "ANCHOR_RIGHT")
+									GameTooltip:SetHyperlink("item:"..entry.id)
+									GameTooltip:Show()
+								end
 							end
 						end,
 			OnLeave =	function()
-								GameTooltip:Hide()
-							end,
+							GameTooltip:Hide()
+						end,
 			draw =	function (rowFrame,cellFrame,entry)
-						local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(entry.id)
-
-						if GnomeWorks:VendorSellsItem(entry.id) then
-							cellFrame.text:SetTextColor(.25,1.0,.25)
-						elseif GnomeWorks.data.itemSource[entry.id] then
-							cellFrame.text:SetTextColor(.25,.75,1.0)
-						else
-							cellFrame.text:SetTextColor(1,1,1)
+						cellFrame.text:SetFormattedText(" |T%s:20:20:0:-2|t %s",entry.itcon or "", entry.name or "item:"..entry.id)
+						if entry.itemColor then
+							cellFrame.text:SetTextColor(unpack(entry.itemColor))
 						end
-
-						cellFrame.text:SetFormattedText(" |T%s:20:20:0:-2|t %s",itemTexture or "", itemName or "item:"..entry.id)
 					end,
 		}, -- [2]
 		{
 			name = "Inventory",
 			width = 70,
 			align = "CENTER",
-			tooltipText = "click to sort\rright-click to filter",
-			sortnext= 1,
 			OnClick = function(cellFrame, button, source)
 				if cellFrame:GetParent().rowIndex==0 then
 					columnControl(cellFrame, button, source)
 				end
 			end,
+			OnEnter =	function (cellFrame)
+							if cellFrame:GetParent().rowIndex == 0 then
+								GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+								GameTooltip:ClearLines()
+								GameTooltip:AddLine("Craftability Counts",1,1,1,true)
+
+								GameTooltip:AddLine("Left-click to Sort")
+								GameTooltip:AddLine("Right-click to Adjust Filterings")
+
+								GameTooltip:Show()
+							else
+								local entry = cellFrame:GetParent().data
+
+								if entry then
+									GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+									GameTooltip:ClearLines()
+									GameTooltip:AddLine(GnomeWorks.player.."'s inventory")
+
+									local prevCount = 0
+
+									for i,key in pairs(inventoryIndex) do
+										local count = entry[key] or 0
+
+										if count ~= prevCount then
+											GameTooltip:AddDoubleLine(inventoryTags[key],count)
+											prevCount = count
+										end
+									end
+
+
+									GameTooltip:Show()
+								end
+							end
+						end,
 			draw =	function (rowFrame,cellFrame,entry)
+--[[
 						local bag = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBag queue")
 						local bank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBank queue")
+						local guildBank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedGuildBank queue")
 						local alt = GnomeWorks:GetInventoryCount(entry.id, "faction", "craftedBank queue")
+]]
 
-						if alt > 0 then
+						local bag, bank, guildBank, alt = entry.bag, entry.bank, entry.guildBank, entry.alt
+
+						if alt+guildBank > 0 then
 							local display = ""
-
+	--[[
 							if bag > 0 then
-								display = string.format("%s%d|r",cbag,bag)
+								display = string.format("%s%d|r",inventoryColors.bag,bag)
 							elseif bank > 0 then
-								display = string.format("%s%d|r",cbank,bank)
+								display = string.format("%s%d|r",inventoryColors.bank,bank)
+							elseif guildBank > 0 then
+								display = string.format("%s%d|r",inventoryColors.guildBank,guildBank)
 							elseif alt > 0 then
-								display = string.format("%s%d|r",calt,alt)
+								display = string.format("%s%d|r",inventoryColors.alt,alt)
 							end
 
 							if alt > bank then
 								if bank ~= 0 then
-									display = string.format("%s/%s%s", display, calt, alt)
+									display = string.format("%s/%s%s", display, inventoryColors.alt, alt)
 								end
 							elseif bank > bag then
-								display = string.format("%s/%s%s", display, cbank, bank)
+								display = string.format("%s/%s%s", display, inventoryColors.bank, bank)
 							end
+	]]
+
+							if bag > 0 then
+								display = string.format("%s%d|r",inventoryColors.bag,bag)
+							elseif bank > 0 then
+								display = string.format("%s%d|r",inventoryColors.bank,bank)
+							elseif guildBank > 0 then
+								display = string.format("%s%d|r",inventoryColors.guildBank,guildBank)
+							elseif alt > 0 then
+								display = string.format("%s%d|r",inventoryColors.alt,alt)
+							end
+
+							if alt > guildBank and guildBank > 0 then
+								display = string.format("%s/%s%s", display, inventoryColors.alt, alt)
+							elseif guildBank > bank and bank > 0 then
+								display = string.format("%s/%s%s", display, inventoryColors.guildBank, guildBank)
+							elseif bank > bag and bag > 0 then
+								display = string.format("%s/%s%s", display, inventoryColors.bank, bank)
+							end
+
 
 
 							cellFrame.text:SetText(display)
@@ -160,6 +257,7 @@ do
 					end,
 		}, -- [3]
 	}
+
 
 
 
@@ -259,6 +357,40 @@ do
 				sf:Refresh()
 			end
 		end
+
+
+		local function UpdateRowData(scrollFrame,entry,firstCall)
+			local player = GnomeWorks.player
+
+			local bag = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBag queue")
+			local bank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBank queue")
+			local guildBank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedGuildBank queue")
+			local alt = GnomeWorks:GetInventoryCount(entry.id, "faction", "craftedGuildBank queue")
+
+			entry.bag = bag
+			entry.bank = bank
+			entry.guildBank = guildBank
+			entry.alt = math.max(alt, guildBank)
+
+			local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(entry.id)
+
+
+
+			if GnomeWorks:VendorSellsItem(entry.id) then
+				entry.itemColor = itemColorVendor
+			elseif GnomeWorks.data.itemSource[entry.id] then
+				entry.itemColor = itemColorCrafted
+			else
+				entry.itemColor = itemColorNormal
+			end
+
+			entry.icon = itemTexture
+
+			entry.name = itemName
+		end
+
+		sf:RegisterRowUpdate(UpdateRowData)
+
 
 		return reagentFrame
 	end

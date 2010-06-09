@@ -792,4 +792,21 @@ DebugSpam("done parsing skill list")
 	function GnomeWorks:GetTradeLink(tradeID, player)
 		return self:GetTradeLinkList(player)[tradeID]
 	end
+
+
+	function GnomeWorks:IsSpellKnown(recipeID, player)
+		player = player or self.player
+
+		local tradeID = GnomeWorksDB.tradeIDs[recipeID]
+
+		local tradeLink = self.data.playerData[player].links[tradeID]
+
+		if tradeLink and self.libTS then
+			return self.libTS:CheckForSpell(tradeLink, recipeID)
+		else
+			return true
+		end
+
+		return false
+	end
 end

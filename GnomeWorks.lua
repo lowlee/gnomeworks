@@ -112,6 +112,7 @@ do
 
 		if LibStub then
 			self.libPT = LibStub:GetLibrary("LibPeriodicTable-3.1", true)
+			self.libTS = LibStub:GetLibrary("LibTradeSkill", true)
 		end
 
 
@@ -208,6 +209,10 @@ do
 		GnomeWorks:RegisterEvent("BAG_UPDATE")
 
 		GnomeWorks:RegisterEvent("BANKFRAME_OPENED")
+
+		GnomeWorks:RegisterEvent("GUILDBANKFRAME_OPENED")
+		GnomeWorks:RegisterEvent("GUILDBANKBAGSLOTS_CHANGED")
+
 	end
 
 

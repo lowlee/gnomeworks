@@ -36,13 +36,22 @@ do
 	local colorFilteringEnabled = { 1,1,.0, .25 }
 
 
+
+	local inventoryIndex = { "bag", "vendor", "bank", "guildBank", "alt" }
+
 	local inventoryColors = {
 		bag = "|cffffff80",
 		vendor = "|cff80ff80",
 		bank =  "|cffffa050",
+		guildBank = "|cff5080ff",
 		alt = "|cffff80ff",
 	}
 
+	local inventoryTags = {}
+
+	for k,v in pairs(inventoryColors) do
+		inventoryTags[k] = v..k
+	end
 
 
 
@@ -198,7 +207,7 @@ do
 			text = "Filter by Inventory: "..inventoryColors.alt.."alts",
 			menuList = craftSourceMenu,
 			hasArrow = true,
-			filterIndex = 4,
+			filterIndex = #inventoryIndex,
 			func = function()
 				local parameters = craftSourceMenu.parameters
 				local index = craftFilterMenu[1].filterIndex
@@ -220,12 +229,14 @@ do
 	end
 
 
-	local craftFilterParameters = {
-		{
-			text = inventoryColors.bag.."bag",
+	local craftFilterParameters = {}
+
+	for i,key in pairs(inventoryIndex) do
+		craftFilterParameters[i] = {
+			text = inventoryTags[key],
 			enabled = false,
 			func = function(entry)
-				if entry and entry.craftBag and entry.craftBag > 0 then
+				if entry and entry[key] and entry[key] > 0 then
 					return false
 				end
 
@@ -234,50 +245,8 @@ do
 			notCheckable = true,
 			checked = false,
 			OnClick = adjustCraftFilterSource,
-		},
-		{
-			text = inventoryColors.vendor.."vendor",
-			func = function(entry)
-				if entry and entry.craftVendor and entry.craftVendor > 0 then
-					return false
-				end
-
-				return true
-			end,
-			notCheckable = true,
-			checked = false,
-			OnClick = adjustCraftFilterSource,
-		},
-		{
-			text = inventoryColors.bank.."bank",
-			enabled = false,
-			func = function(entry)
-				if entry and entry.craftBank and entry.craftBank > 0 then
-					return false
-				end
-
-				return true
-			end,
-			notCheckable = true,
-			checked = false,
-			OnClick = adjustCraftFilterSource,
-		},
-		{
-			text = inventoryColors.alt.."alts",
-			enabled = false,
-			func = function(entry)
-				if entry and entry.craftAlt and entry.craftAlt > 0 then
-					return false
-				end
-
-				return true
-			end,
-			notCheckable = true,
-			checked = false,
-			OnClick = adjustCraftFilterSource,
-		},
-	}
-
+		}
+	end
 
 
 
@@ -307,8 +276,6 @@ do
 	local recipeFilterMenu
 
 	recipeFilterMenu = {
---		{ text = "Collapse All", func = function() GnomeWorks:CollapseAllHeaders(sf.data.entries) sf:Refresh() end,},
---		{ text = "Expand All", func = function() GnomeWorks:ExpandAllHeaders(sf.data.entries) sf:Refresh() end,},
 		{
 			text = "Filter by Difficulty",
 			menuList = recipeLevelMenu,
@@ -320,15 +287,9 @@ do
 				local parameters = recipeLevelMenu.parameters
 				local index = recipeFilterMenu[1].filterIndex
 
---				filterSet(button, setting)
-
 				recipeLevelMenu[index].func(nil, recipeLevelMenu[index].arg1)
 
---				parameters[index].enabled = not parameters[index].enabled
-
 				recipeFilterMenu[1].checked = parameters[index].enabled
-
-				--sf:Refresh()
 			end,
 			checked = false,
 		},
@@ -399,6 +360,26 @@ do
 
 
 
+	local function columnControl(cellFrame,button,source)
+		local filterMenuFrame = getglobal("GnomeWorksFilterMenuFrame")
+		local scrollFrame = cellFrame:GetParent():GetParent()
+
+		if button == "RightButton" then
+			if cellFrame.header.filterMenu then
+				local x, y = GetCursorPosition()
+				local uiScale = UIParent:GetEffectiveScale()
+
+				EasyMenu(cellFrame.header.filterMenu, filterMenuFrame, UIParent, x/uiScale,y/uiScale, "MENU", 5)
+			end
+		else
+			scrollFrame.sortInvert = (scrollFrame.SortCompare == cellFrame.header.sortCompare) and not scrollFrame.sortInvert
+
+			scrollFrame:HighlightColumn(cellFrame.header.name, scrollFrame.sortInvert)
+			scrollFrame.SortCompare = cellFrame.header.sortCompare
+			scrollFrame:Refresh()
+		end
+	end
+
 
 
 
@@ -436,18 +417,7 @@ do
 						end,
 			OnClick = function(cellFrame, button, source)
 							if cellFrame:GetParent().rowIndex == 0 then
-								if button == "RightButton" then
-									local x, y = GetCursorPosition()
-									local uiScale = UIParent:GetEffectiveScale()
-
-									EasyMenu(cellFrame.header.filterMenu, filterMenuFrame, UIParent, x/uiScale,y/uiScale, "MENU", 5)
-								else
-									sf.sortInvert = (sf.SortCompare == cellFrame.header.sortCompare) and not sf.sortInvert
-
-									sf:HighlightColumn(cellFrame.header.name, sf.sortInvert)
-									sf.SortCompare = cellFrame.header.sortCompare
-									sf:Refresh()
-								end
+								columnControl(cellFrame, button, source)
 							end
 						end,
 			OnEnter =	function (cellFrame)
@@ -492,34 +462,23 @@ do
 									sf:Draw()
 								end
 							else
-								if button == "RightButton" then
-									local x, y = GetCursorPosition()
-									local uiScale = UIParent:GetEffectiveScale()
-
-									EasyMenu(cellFrame.header.filterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
+								if source ~= "button" then
+									columnControl(cellFrame, button, source)
 								else
-									if source == "button" then
-										cellFrame.collapsed = not cellFrame.collapsed
+									cellFrame.collapsed = not cellFrame.collapsed
 
-										if not cellFrame.collapsed then
-											GnomeWorks:CollapseAllHeaders(sf.data.entries)
-											sf:Refresh()
-
-											cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
-											cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
-										else
-											GnomeWorks:ExpandAllHeaders(sf.data.entries)
-											sf:Refresh()
-
-											cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
-											cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
-										end
-									else
-										sf.sortInvert = (sf.SortCompare == cellFrame.header.sortCompare) and not sf.sortInvert
-
-										sf:HighlightColumn(cellFrame.header.name, sf.sortInvert)
-										sf.SortCompare = cellFrame.header.sortCompare
+									if not cellFrame.collapsed then
+										GnomeWorks:CollapseAllHeaders(sf.data.entries)
 										sf:Refresh()
+
+										cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
+										cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
+									else
+										GnomeWorks:ExpandAllHeaders(sf.data.entries)
+										sf:Refresh()
+
+										cellFrame.button:SetNormalTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
+										cellFrame.button:SetHighlightTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_open.tga")
 									end
 								end
 							end
@@ -585,7 +544,7 @@ do
 			width = 60,
 			align = "CENTER",
 			sortCompare = function(a,b)
-				return (a.craftAlt or 0) - (b.craftAlt or 0)
+				return (a.alt or 0) - (b.alt or 0)
 			end,
 			enabled = function()
 				return GnomeWorks.tradeID ~= 53428
@@ -593,18 +552,7 @@ do
 			filterMenu = craftFilterMenu,
 			OnClick = 	function(cellFrame, button, source)
 							if cellFrame:GetParent().rowIndex == 0 then
-								if button == "RightButton" then
-									local x, y = GetCursorPosition()
-									local uiScale = UIParent:GetEffectiveScale()
-
-									EasyMenu(cellFrame.header.filterMenu, filterMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
-								else
-									sf.sortInvert = (sf.SortCompare == cellFrame.header.sortCompare) and not sf.sortInvert
-
-									sf:HighlightColumn(cellFrame.header.name, sf.sortInvert)
-									sf.SortCompare = cellFrame.header.sortCompare
-									sf:Refresh()
-								end
+								columnControl(cellFrame, button, source)
 							end
 						end,
 			draw =	function (rowFrame,cellFrame,entry)
@@ -614,15 +562,15 @@ do
 							end
 
 							if GnomeWorksDB.vendorOnly[entry.recipeID] then
-								if entry.craftBag and entry.craftBag ~= 0 then
-									cellFrame.text:SetFormattedText("%s%d|r/\226\136\158",inventoryColors.bag,entry.craftBag)
+								if entry.bag and entry.bag ~= 0 then
+									cellFrame.text:SetFormattedText("%s%d|r/\226\136\158",inventoryColors.bag,entry.bag)
 								else
 									cellFrame.text:SetText("\226\136\158")
 								end
 							else
-								local bag,vendor,bank,alt = entry.craftBag or -1, entry.craftVendor or -1, entry.craftBank or -1 , entry.craftAlt or -1
+								local bag,vendor,bank,guildBank,alt = entry.bag or -1, entry.vendor or -1, entry.bank or -1 , entry.guildBank or -1, entry.alt or -1
 
-								if alt > 0 then
+								if alt+guildBank > 0 then
 									local display = ""
 
 									if bag > 0 then
@@ -631,12 +579,16 @@ do
 										display = string.format("%s%d|r",inventoryColors.vendor,vendor)
 									elseif bank > 0 then
 										display = string.format("%s%d|r",inventoryColors.bank,bank)
+									elseif guildBank > 0 then
+										display = string.format("%s%d|r",inventoryColors.guildBank,guildBank)
 									elseif alt > 0 then
 										display = string.format("%s%d|r",inventoryColors.alt,alt)
 									end
 
-									if alt > bank and bank > 0 then
+									if alt > guildBank and guildBank > 0 then
 										display = string.format("%s/%s%s", display, inventoryColors.alt, alt)
+									elseif guildBank > bank and bank > 0 then
+										display = string.format("%s/%s%s", display, inventoryColors.guildBank, guildBank)
 									elseif bank > vendor and vendor > 0 then
 										display = string.format("%s/%s%s", display, inventoryColors.bank, bank)
 									elseif vendor > bag and bag > 0 then
@@ -671,34 +623,29 @@ do
 										GameTooltip:AddLine("Recipe Craftability",1,1,1,true)
 										GameTooltip:AddLine(GnomeWorks.player.."'s Inventory")
 
-										if entry.craftBag and entry.craftBag>0 then
-											GameTooltip:AddDoubleLine("|cffffff80bags",entry.craftBag)
+										if entry.bag and entry.bag>0 then
+											GameTooltip:AddDoubleLine("|cffffff80bags",entry.bag)
 										end
 
 										GameTooltip:AddLine("\226\136\158 = unlimited through vendor")
 										GameTooltip:Show()
 
-									elseif entry.craftAlt and entry.craftAlt > 0 then
+									elseif entry.alt and entry.alt + entry.guildBank > 0 then
 										GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
 										GameTooltip:ClearLines()
 										GameTooltip:AddLine("Recipe Craftability",1,1,1,true)
 										GameTooltip:AddLine(GnomeWorks.player.."'s inventory")
 
-										if entry.craftBag and entry.craftBag>0 then
-											GameTooltip:AddDoubleLine("|cffffff80bags",entry.craftBag)
+										local prevCount = 0
+										for i,key in pairs(inventoryIndex) do
+											local count = entry[key] or 0
+
+											if count ~= prevCount then
+												GameTooltip:AddDoubleLine(inventoryTags[key],count)
+												prevCount = count
+											end
 										end
 
-										if entry.craftVendor and entry.craftVendor>0  then
-											GameTooltip:AddDoubleLine("|cff80ff80vendor",entry.craftVendor)
-										end
-
-										if entry.craftBank and entry.craftBank>0 then
-											GameTooltip:AddDoubleLine("|cffffa050bank",entry.craftBank)
-										end
-
-										if entry.craftAlt and entry.craftAlt>0 then
-											GameTooltip:AddDoubleLine("|cffff80ffalts",entry.craftAlt)
-										end
 
 										GameTooltip:Show()
 									end
@@ -801,12 +748,14 @@ do
 				local bag = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "craftedBag queue")
 				local vendor = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "vendor craftedBag queue")
 				local bank = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "vendor craftedBank queue")
-				local alts = GnomeWorks:InventoryRecipeIterations(entry.recipeID, "faction", "vendor craftedBank queue")
+				local guildBank = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "vendor craftedGuildBank queue")
+				local alt = GnomeWorks:InventoryRecipeIterations(entry.recipeID, "faction", "vendor craftedGuildBank queue")
 
-				entry.craftBag = bag
-				entry.craftVendor = vendor
-				entry.craftBank = bank
-				entry.craftAlt = alts
+				entry.bag = bag
+				entry.vendor = vendor
+				entry.bank = bank
+				entry.guildBank = guildBank
+				entry.alt = math.max(alt, guildBank)
 
 				if not entry.itemColor then
 					local itemLink = GnomeWorks:GetTradeSkillItemLink(entry.index)
@@ -1047,17 +996,17 @@ do
 
 				local _, _, _, _, _, _, _, itemStackCount = GetItemInfo(next(GnomeWorksDB.results[recipeID]))
 
-				if entry.craftAlt < 1 then
+				if entry.alt < 1 then
 					numItems = itemStackCount
 				else
-					if entry.craftBag > 1 then
-						numItems = entry.craftBag
-					elseif entry.craftVendor > 1 then
-						numItems = entry.craftVendor
-					elseif entry.craftBank > 1 then
-						numItems = entry.craftBank
+					if entry.bag > 1 then
+						numItems = entry.bag
+					elseif entry.vendor > 1 then
+						numItems = entry.vendor
+					elseif entry.bank > 1 then
+						numItems = entry.bank
 					else
-						numItems = entry.craftAlt
+						numItems = entry.alt
 					end
 				end
 

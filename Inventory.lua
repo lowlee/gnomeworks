@@ -139,95 +139,6 @@ do
 
 
 
---[[
-	function GnomeWorks:InventoryRecipeIterationsBagOnly(recipeID, playerOverride)
-		local player = playerOverride or self.player
-		local recipe = GnomeWorks.data.recipeDB[recipeID]
-
-		if recipe and recipe.reagentData then							-- make sure that recipe is in the database before continuing
-			local numCraftable = 100000000
-
-			local vendorOnly = true
-
-			for i=1,#recipe.reagentData,1 do
-				if recipe.reagentData[i].id then
-
-					local reagentID = recipe.reagentData[i].id
-					local numNeeded = recipe.reagentData[i].numNeeded
-
-					local reagentAvailability = self:GetInventory(player, reagentID)
-
-					if self:VendorSellsItem(reagentID) then											-- if it's available from a vendor, then only worry about bag inventory
-						numCraftable = math.min(numCraftable, math.floor(reagentAvailability/numNeeded))
-					else
-						vendorOnly = nil
-
-						numCraftable = math.min(numCraftable, math.floor(reagentAvailability/numNeeded))
-					end
-
-
-					if (numCraftable == 0) then
-						break
-					end
-
-				else												-- no data means no craftability
-					numCraftable = 0
-
---					self.dataScanned = false						-- mark the data as needing to be rescanned since a reagent id seems corrupt
-				end
-			end
-
-			recipe.unlimited = vendorOnly
-
-
-			return math.max(0,numCraftable)
-		else
-			DEFAULT_CHAT_FRAME:AddMessage("can't calc craft iterations!")
-		end
-
-		return 0
-	end
-
-
-	-- returns item count in bag, craftable from bag, in bank, craftable from bank
-
-	function GnomeWorks:GetInventory(player, reagentID)
-		if player and reagentID then
-			local inventoryData = self.data.inventoryData[player]
-			if inventoryData[reagentID] then
-				local a,b,c,d = string.match(inventoryData[reagentID],"(%d+) (%d+) (%d+) (%d+)")
-
-				return tonumber(a), tonumber(b), tonumber(c), tonumber(d)
-			end
-		end
-
-		return 0, 0, 0, 0			-- bags, bagsCraftable, bank, bankCraftable, alt, altCraftable
-	end
-
-
-	function GnomeWorks:GetFactionInventory(reagentID)
-		if reagentID then
-			local alt, altCraftable, altBank, altBankCraftable = 0,0,0,0
-
-			for player, inventoryData in pairs(self.data.inventoryData) do
-				if inventoryData[reagentID] then
-					local a,b,c,d = string.match(inventoryData[reagentID],"(%d+) (%d+) (%d+) (%d+)")
-
-					alt = alt + a
-					altCraftable = altCraftable + b
-					altBank = altBank + c
-					altBankCraftable = altBankCraftable + d
-				end
-			end
-
-			return alt, altCraftable, altBank, altBankCraftable
-		end
-
-		return 0, 0, 0, 0			-- bags, bagsCraftable, bank, bankCraftable, alt, altCraftable
-	end
-]]
-
-
 	function GnomeWorks:SetInventoryCount(itemID, player, container, count)
 		self.data.inventoryData[player][container][itemID] = count
 	end
@@ -237,6 +148,9 @@ do
 		local inv = self.data.inventoryData[player]["queue"]
 
 		inv[itemID] = (inv[itemID] or 0) - count					-- queue "inventory" is negative meaning that it requires these items
+
+
+--		print(player, (GetItemInfo(itemID)), count, -inv[itemID])
 	end
 
 
@@ -252,6 +166,14 @@ do
 						if self:VendorSellsItem(itemID) then
 							return LARGE_NUMBER
 						end
+					elseif container == "guildBank" then
+						local key = "GUILD:"..self.data.playerData[player].guild
+
+						if self.data.inventoryData[key] and self.data.inventoryData[key].bank then
+							count = count + (self.data.inventoryData[key].bank[itemID] or 0)
+						end
+
+						count = count + (inventoryData.bank[itemID] or 0)
 					else
 						if inventoryData[container] then
 							count = count + (inventoryData[container][itemID] or 0)
@@ -263,13 +185,12 @@ do
 			end
 
 			return 0
-		else
+		else -- faction-wide materials
 			local count = 0
 
 			for player, inventoryData in pairs(self.data.inventoryData) do
 
 				for container in string.gmatch(containerList, "%a+") do
-
 					if container == "vendor" then
 						if self:VendorSellsItem(itemID) then
 							return LARGE_NUMBER
@@ -315,6 +236,10 @@ do
 				inventory["craftedBank"] = {}
 			end
 
+			if not inventory["craftedGuildBank"] then
+				inventory["craftedGuildBank"] = {}
+			end
+
 
 			if player == (UnitName("player")) then
 				for reagentID in pairs(GnomeWorks.data.reagentUsage) do
@@ -341,6 +266,7 @@ do
 
 			local craftedBag = table.wipe(inventory["craftedBag"])
 			local craftedBank = table.wipe(inventory["craftedBank"])
+			local craftedGuildBank = table.wipe(inventory["craftedGuildBank"])
 
 			for reagentID, count in pairs(inventory["bag"]) do
 				craftedBag[reagentID] = count
@@ -348,6 +274,19 @@ do
 
 			for reagentID, count in pairs(inventory["bank"]) do
 				craftedBank[reagentID] = count
+				craftedGuildBank[reagentID] = count
+			end
+
+			if self.data.playerData[player].guild then
+				local key = "GUILD:"..self.data.playerData[player].guild
+
+				local guildBankInventory = self.data.inventoryData[key]
+
+				if guildBankInventory and guildBankInventory.bank then
+					for reagentID, count in pairs(guildBankInventory.bank) do
+						craftedGuildBank[reagentID] = (craftedGuildBank[reagentID] or 0) + count
+					end
+				end
 			end
 
 
@@ -358,6 +297,7 @@ do
 				if GnomeWorks.data.itemSource[reagentID] then
 					self:InventoryReagentCraftability(craftedBag, reagentID, player, "craftedBag queue")
 					self:InventoryReagentCraftability(craftedBank, reagentID, player, "craftedBank queue")
+					self:InventoryReagentCraftability(craftedGuildBank, reagentID, player, "craftedGuildBank queue")
 				end
 			end
 		end
