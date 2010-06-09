@@ -15,7 +15,7 @@ do
 				local honorPoints, arenaPoints, itemCount = GetMerchantItemCostInfo(i)
 
 				if not extendedCost then
-					self:print("recording vendor item: ",name)
+					GnomeWorks:print("recording vendor item: ",name)
 					GnomeWorksDB.vendorItems[itemID] = true
 				elseif arenaPoints == 0 and honorPoints == 0 then
 					local reagents = {}
@@ -39,7 +39,7 @@ do
 					GnomeWorks:AddToItemCache(itemID, spoofedRecipeID, quantity)
 
 
-					self:print("recording vendor conversion for item: ",name)
+					GnomeWorks:print("recording vendor conversion for item: ",name)
 				end
 			end
 		end
