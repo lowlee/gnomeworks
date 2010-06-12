@@ -99,9 +99,11 @@ do
 
 
 	function GnomeWorks:PLAYER_GUILD_UPDATE(...)
-		self.data.playerData[playerName].guild = GetGuildInfo("player")
+		if self.data.playerData[UnitName("player")] then
+			self.data.playerData[UnitName("player")].guild = GetGuildInfo("player")
 
-		self:InventoryScan()
+			self:InventoryScan()
+		end
 	end
 
 
