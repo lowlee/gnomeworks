@@ -43,6 +43,10 @@ do
 
 
 	local function CalculateRecipeCrafting(craftabilityTable, reagents, player, containerList)
+		if not reagents or not containerList then
+			return 0
+		end
+
 		local numCraftable = LARGE_NUMBER
 
 		for reagentID, numNeeded in pairs(reagents) do

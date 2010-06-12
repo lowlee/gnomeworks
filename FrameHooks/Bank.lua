@@ -172,7 +172,7 @@ do
 		local player = self.player or UnitName("player")
 		local playerData = self.data.playerData
 
-		local guild = playerData[player].guild
+		local guild = playerData[player].guild or GetGuildInfo("player")
 
 		local key = "GUILD:"..guild
 
