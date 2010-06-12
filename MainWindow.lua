@@ -36,6 +36,15 @@ do
 	local colorFilteringEnabled = { 1,1,.0, .25 }
 
 
+	local tooltipScanner = _G["GWParsingTooltip"] or CreateFrame("GameTooltip", "GWParsingTooltip", getglobal("ANCHOR_NONE"), "GameTooltipTemplate")
+
+	tooltipScanner:SetOwner(WorldFrame, "ANCHOR_NONE")
+
+
+	local tooltipRecipeCache = {}
+	local tooltipRecipeCacheLeft =  {{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}}		-- 20 lines
+	local tooltipRecipeCacheRight = {{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}}		-- 20 lines
+
 
 	local inventoryIndex = { "bag", "vendor", "bank", "guildBank", "alt" }
 
@@ -729,11 +738,57 @@ do
 			end
 
 			if textFilter and textFilter ~= "" then
-				for w in string.gmatch(textFilter, "%a+") do
-					if string.match(string.lower(entry.name), w, 1, true)==nil then
-						return true
+				if entry.recipeID then
+					local recipeID = entry.recipeID
+
+					if not tooltipRecipeCache[recipeID] then
+						local tipLines = tooltipScanner:NumLines()
+
+						tooltipRecipeCache[recipeID] = tipLines
+
+						tooltipScanner:SetOwner(frame, "ANCHOR_NONE")
+						tooltipScanner:SetHyperlink("spell:"..entry.recipeID)
+
+						for i=#tooltipRecipeCacheLeft,tipLines do
+							tooltipRecipeCacheLeft[i] = {}
+							tooltipRecipeCacheRight[i] = {}
+						end
+
+						for i=1, tipLines do
+							if _G["GWParsingTooltipTextLeft"..i]:GetText() then
+								tooltipRecipeCacheLeft[i][recipeID] = string.lower(_G["GWParsingTooltipTextLeft"..i]:GetText())
+							end
+
+							if _G["GWParsingTooltipTextRight"..i]:GetText() then
+								tooltipRecipeCacheRight[i][recipeID] = string.lower(_G["GWParsingTooltipTextRight"..i]:GetText())
+							end
+						end
+					end
+
+					local tipLines = tooltipRecipeCache[recipeID]
+
+					for w in string.gmatch(textFilter, "%a+") do
+						local found
+
+						for i=1, tipLines do
+							if tooltipRecipeCacheLeft[i][recipeID] and string.match(tooltipRecipeCacheLeft[i][recipeID], w, 1, true) then
+								found = true
+								break
+							end
+
+							if tooltipRecipeCacheRight[i][recipeID] and string.match(tooltipRecipeCacheRight[i][recipeID], w, 1, true) then
+								found = true
+								break
+							end
+						end
+
+						if not found then
+							return true
+						end
 					end
 				end
+
+				return false
 			end
 
 			return false
@@ -816,9 +871,18 @@ do
 
 
 	function GnomeWorks:TRADE_SKILL_SHOW()
-		frame:Show()
-		frame.title:Show()
-		sf:Show()
+		if IsControlKeyDown() then
+			if frame:IsShown() then
+				frame:Hide()
+				frame.title:Hide()
+			end
+
+			self.blizzardFrameShow()
+		else
+			frame:Show()
+			frame.title:Show()
+			sf:Show()
+		end
 	end
 
 

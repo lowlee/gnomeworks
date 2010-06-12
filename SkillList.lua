@@ -773,7 +773,7 @@ DebugSpam("done parsing skill list")
 	function GnomeWorks:GetSkillDifficultyLevel(index)
 		local skillName, skillType = self:GetTradeSkillInfo(index)
 
-		return skillTypeStyle[skillType].level
+		return skillTypeStyle[skillType or "unknown"].level
 	end
 
 	function GnomeWorks:GetSkillDifficulty(index)

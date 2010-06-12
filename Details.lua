@@ -43,7 +43,7 @@ do
 	end
 
 
-	local tooltipScanner = CreateFrame("GameTooltip", "GWParsingTooltip", getglobal("ANCHOR_NONE"), "GameTooltipTemplate")
+	local tooltipScanner =  _G["GWParsingTooltip"] or CreateFrame("GameTooltip", "GWParsingTooltip", getglobal("ANCHOR_NONE"), "GameTooltipTemplate")
 
 	tooltipScanner:SetOwner(WorldFrame, "ANCHOR_NONE")
 

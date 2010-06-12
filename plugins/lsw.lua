@@ -6,6 +6,11 @@ do
 	local function RegisterWithLSW()
 		if not LSW then return end
 
+		if not LSW.buttonScripts then
+			print("|cffff0000GnomeWorks LSW support requires an update to your local copy of LilSparky's Workshop")
+			return
+		end
+
 		local valueColumn
 		local costColumn
 		local scrollFrame

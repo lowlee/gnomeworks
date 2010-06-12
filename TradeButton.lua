@@ -23,14 +23,32 @@ do
 		if frame.tradeLink then
 --			local tradeString = string.match(frame.tradeLink, "(trade:%d+:%d+:%d+:[0-9A-F]+:[0-9A-Za-z+/]+)")
 --			SetItemRef(tradeString,frame.tradeLink, button)
-			GnomeWorks:OpenTradeLink(frame.tradeLink, GnomeWorks.player)
+			if IsShiftKeyDown() then
+				if (not ChatEdit_InsertLink(frame.tradeLink)) then
+					ChatFrameEditBox:Show()
+					ChatEdit_InsertLink(frame.tradeLink)
+				end
+			else
+				GnomeWorks:OpenTradeLink(frame.tradeLink, GnomeWorks.player)
+			end
 		else
-			if ((GetTradeSkillLine() == "Mining" and "Smelting") or GetTradeSkillLine()) ~= frame.tradeName or IsTradeSkillLinked() then
+			if IsShiftKeyDown() then
+				local _,link = GetSpellLink(frame.tradeID)
+
+				if (not ChatEdit_InsertLink(link) ) then
+					ChatFrameEditBox:Show()
+					ChatEdit_InsertLink(link)
+				end
+			elseif ((GetTradeSkillLine() == "Mining" and "Smelting") or GetTradeSkillLine()) ~= frame.tradeName or IsTradeSkillLinked() then
 				CastSpellByName(frame.tradeName)
 			end
 		end
 
-		frame:SetChecked(1)
+		if frame.tradeID == GnomeWorks.tradeID then
+			frame:SetChecked(1)
+		else
+			frame:SetChecked(0)
+		end
 	end
 
 

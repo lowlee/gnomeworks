@@ -166,7 +166,7 @@ do
 						if self:VendorSellsItem(itemID) then
 							return LARGE_NUMBER
 						end
-					elseif container == "guildBank" then
+					elseif container == "guildBank" and self.data.playerData[player].guild then
 						local key = "GUILD:"..self.data.playerData[player].guild
 
 						if self.data.inventoryData[key] and self.data.inventoryData[key].bank then
@@ -236,7 +236,7 @@ do
 				inventory["craftedBank"] = {}
 			end
 
-			if not inventory["craftedGuildBank"] then
+			if not inventory["craftedGuildBank"] and self.data.playerData[player].guild then
 				inventory["craftedGuildBank"] = {}
 			end
 
@@ -266,7 +266,7 @@ do
 
 			local craftedBag = table.wipe(inventory["craftedBag"])
 			local craftedBank = table.wipe(inventory["craftedBank"])
-			local craftedGuildBank = table.wipe(inventory["craftedGuildBank"])
+			local craftedGuildBank = inventory["craftedGuildBank"] and table.wipe(inventory["craftedGuildBank"])
 
 			for reagentID, count in pairs(inventory["bag"]) do
 				craftedBag[reagentID] = count
@@ -274,7 +274,9 @@ do
 
 			for reagentID, count in pairs(inventory["bank"]) do
 				craftedBank[reagentID] = count
-				craftedGuildBank[reagentID] = count
+				if self.data.playerData[player].guild then
+					craftedGuildBank[reagentID] = count
+				end
 			end
 
 			if self.data.playerData[player].guild then
@@ -287,6 +289,8 @@ do
 						craftedGuildBank[reagentID] = (craftedGuildBank[reagentID] or 0) + count
 					end
 				end
+			else
+				inventory["craftedGuildBank"] = nil
 			end
 
 
@@ -297,7 +301,9 @@ do
 				if GnomeWorks.data.itemSource[reagentID] then
 					self:InventoryReagentCraftability(craftedBag, reagentID, player, "craftedBag queue")
 					self:InventoryReagentCraftability(craftedBank, reagentID, player, "craftedBank queue")
-					self:InventoryReagentCraftability(craftedGuildBank, reagentID, player, "craftedGuildBank queue")
+					if self.data.playerData[player].guild then
+						self:InventoryReagentCraftability(craftedGuildBank, reagentID, player, "craftedGuildBank queue")
+					end
 				end
 			end
 		end

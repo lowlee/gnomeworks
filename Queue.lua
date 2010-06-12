@@ -828,41 +828,45 @@ do
 			local entry = FirstCraftableEntry(GnomeWorks.data.constructionQueue[queuePlayer])
 
 			if entry then
---				print(entry.recipeID, GnomeWorks:GetRecipeName(entry.recipeID), entry.count, entry.numAvailable)
-				if GetSpellLink((GetSpellInfo(entry.tradeID))) then
-					if GnomeWorks:IsTradeSkillLinked() or GnomeWorks.player ~= UnitName("player") or GnomeWorks.tradeID ~= entry.tradeID then
-						CastSpellByName((GetSpellInfo(entry.tradeID)))
-					end
-
-					local skillIndex
-
-					local enchantString = "enchant:"..entry.recipeID.."|h"
-
-					for i=1,GetNumTradeSkills() do
-						local link = GetTradeSkillRecipeLink(i)
-
-						if link and string.find(link, enchantString) then
-
-							skillIndex = i
-							break
-						end
-					end
-
-					doTradeEntry = entry
-
-					if skillIndex then
-					print("executing "..GnomeWorks:GetRecipeName(entry.recipeID).."("..(skillIndex or "nil")..") x "..math.min(entry.count, entry.numAvailable))
-						DoTradeSkill(skillIndex,math.min(entry.count, entry.numAvailable))
-					else
-						print("can't find recipe:",GnomeWorks:GetRecipeName(entry.recipeID))
-					end
-
---					GnomeWorks:ProcessRecipe(entry.tradeID, entry.recipeID, math.max(entry.count, entry.numAvailable))
+				if GnomeWorks:IsPseudoTrade(entry.tradeID) then
+					GnomeWorks:print(GnomeWorks:GetTradeName(entry.tradeID),"isn't functional yet.")
 				else
-					print("can't process "..GnomeWorks:GetRecipeName(entry.recipeID).." on this character")
+--				print(entry.recipeID, GnomeWorks:GetRecipeName(entry.recipeID), entry.count, entry.numAvailable)
+					if GetSpellLink((GetSpellInfo(entry.tradeID))) then
+						if GnomeWorks:IsTradeSkillLinked() or GnomeWorks.player ~= UnitName("player") or GnomeWorks.tradeID ~= entry.tradeID then
+							CastSpellByName((GetSpellInfo(entry.tradeID)))
+						end
+
+						local skillIndex
+
+						local enchantString = "enchant:"..entry.recipeID.."|h"
+
+						for i=1,GetNumTradeSkills() do
+							local link = GetTradeSkillRecipeLink(i)
+
+							if link and string.find(link, enchantString) then
+
+								skillIndex = i
+								break
+							end
+						end
+
+						doTradeEntry = entry
+
+						if skillIndex then
+						GnomeWorks:print("executing ",GnomeWorks:GetRecipeName(entry.recipeID),"("..(skillIndex or "nil")..") x",math.min(entry.count, entry.numAvailable))
+							DoTradeSkill(skillIndex,math.min(entry.count, entry.numAvailable))
+						else
+							GnomeWorks:print("can't find recipe:",GnomeWorks:GetRecipeName(entry.recipeID))
+						end
+
+	--					GnomeWorks:ProcessRecipe(entry.tradeID, entry.recipeID, math.max(entry.count, entry.numAvailable))
+					else
+						GnomeWorks:print("can't process",GnomeWorks:GetRecipeName(entry.recipeID),"on this character")
+					end
 				end
 			else
-				print("nothing craftable")
+				GnomeWorks:print("nothing craftable")
 			end
 		end
 

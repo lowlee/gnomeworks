@@ -98,6 +98,13 @@ do
 	end
 
 
+	function GnomeWorks:PLAYER_GUILD_UPDATE(...)
+		self.data.playerData[playerName].guild = GetGuildInfo("player")
+
+		self:InventoryScan()
+	end
+
+
 	function GnomeWorks:OnLoad()
 		self:print("Initializing (r"..VERSION..")")
 
@@ -213,6 +220,7 @@ do
 		GnomeWorks:RegisterEvent("GUILDBANKFRAME_OPENED")
 		GnomeWorks:RegisterEvent("GUILDBANKBAGSLOTS_CHANGED")
 
+		GnomeWorks:RegisterEvent("PLAYER_GUILD_UPDATE")
 	end
 
 

@@ -4,11 +4,20 @@
 
 do
 	local function Initialize()
+
+		LoadAddOn("AckisRecipeList")
+
 		local ARL = AckisRecipeList
 
 		local ARLSourceFlags = {}
 
 		if ARL then
+
+			if not ARL.InitializeProfession then
+				print("|cffff0000GnomeWorks ARL support requires an update to your local copy of Ackis Recipe List")
+				return
+			end
+
 
 			local GWFrame = GnomeWorks:GetMainFrame()
 			local GWScrollFrame = GnomeWorks:GetSkillListScrollFrame()

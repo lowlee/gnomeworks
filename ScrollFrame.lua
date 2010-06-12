@@ -307,25 +307,26 @@ do
 				local entry = data.entries[i]
 				entry.depth = depth
 
-				if entry.subGroup and entry.subGroup.numVisible>0 then
+				if entry.subGroup then
+					if entry.subGroup.numVisible>0 then
+						if scrollFrame.childrenFirst then
+							if entry.subGroup.expanded then
+								num = num + FilterData(scrollFrame, entry.subGroup, depth+1, map, num+index)
+							end
 
-					if scrollFrame.childrenFirst then
-						if entry.subGroup.expanded then
-							num = num + FilterData(scrollFrame, entry.subGroup, depth+1, map, num+index)
-						end
+							map[num+index] = entry
+							entry.dataIndex = num+index
 
-						map[num+index] = entry
-						entry.dataIndex = num+index
+							num = num + 1
+						else
+							map[num+index] = entry
+							entry.dataIndex = num+index
 
-						num = num + 1
-					else
-						map[num+index] = entry
-						entry.dataIndex = num+index
+							num = num +1
 
-						num = num +1
-
-						if entry.subGroup.expanded then
-							num = num + FilterData(scrollFrame, entry.subGroup, depth+1, map, num+index)
+							if entry.subGroup.expanded then
+								num = num + FilterData(scrollFrame, entry.subGroup, depth+1, map, num+index)
+							end
 						end
 					end
 				else
