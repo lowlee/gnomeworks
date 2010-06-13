@@ -328,6 +328,11 @@ do
 								num = num + FilterData(scrollFrame, entry.subGroup, depth+1, map, num+index)
 							end
 						end
+					elseif entry.noHide then
+						map[num+index] = entry
+						entry.dataIndex = num+index
+
+						num = num + 1
 					end
 				else
 					if not scrollFrame:IsEntryFiltered(entry) then

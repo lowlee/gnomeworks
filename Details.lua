@@ -26,7 +26,7 @@ do
 	local itemColorCrafted = {.25,.75,1.0}
 	local itemColorNormal = {1,1,1}
 
-	local inventoryIndex = { "bag", "vendor", "bank", "guildBank", "alt" }
+	local inventoryIndex = { "bag", "bank", "guildBank", "alt" }
 
 	local inventoryColors = {
 		bag = "|cffffff80",

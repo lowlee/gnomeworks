@@ -108,22 +108,39 @@ do
 							if rowFrame.rowIndex>0 then
 								local entry = rowFrame.data
 
-								if entry and entry.count > entry.numAvailable then
+								if entry and entry.count then
 									GameTooltip:SetOwner(rowFrame, "ANCHOR_TOPRIGHT")
 									GameTooltip:ClearLines()
 
+
 									if entry.command == "process" then
-										if entry.numAvailable < 1 then
-											GameTooltip:AddLine("Missing reagents",1,0,0)
+--		print("proc",entry.numAvailable, entry.count)
+										GameTooltip:AddLine(GetSpellLink(entry.recipeID))
+
+										if entry.numAvailable < entry.count then
+											if entry.inQueue > entry.numAvailable then
+												GameTooltip:AddLine("Requires craftable reagents",1,1,0)
+											elseif entry.numAvailable < 1 then
+												GameTooltip:AddLine("No available reagents",1,0,0)
+											else
+												GameTooltip:AddLine(string.format("Only enough reagents for %d iterations",entry.numAvailable),.8,.8,0)
+											end
 										else
-											GameTooltip:AddLine("Only enough reagents for "..entry.numAvailable,.8,.8,0)
+											GameTooltip:AddLine(string.format("%d craftable",entry.numAvailable))
 										end
 									elseif entry.command == "purchase" then
-										if entry.numAvailable < 1 then
-											local prevCount = 0
-											GameTooltip:AddLine("Restocking options:",1,1,1)
+										GameTooltip:AddLine(select(2,GetItemInfo(entry.itemID)))
 
-											GameTooltip:AddDoubleLine("|cffff0000Total in Queue:",-entry.inQueue)
+										if entry.numAvailable < entry.count then
+											local prevCount = 0
+											GameTooltip:AddLine("Current Stock:",1,1,1)
+
+											if entry.inQueue < 0 then
+												GameTooltip:AddDoubleLine("|cffff0000Required by Queue:",-1.0 * entry.inQueue)
+											elseif entry.inQueue > 0 then
+												GameTooltip:AddDoubleLine("|cffffffffProduced by Queue:",entry.inQueue)
+											end
+
 											for i,key in pairs(inventoryIndex) do
 												local count = entry[key] or 0
 
@@ -143,6 +160,7 @@ do
 							GameTooltip:Hide()
 						end,
 			draw =	function (rowFrame,cellFrame,entry)
+--print(entry.manualEntry,entry.command, entry.recipeID or entry.itemID, entry.count, entry.numAvailable)
 							if entry.count > entry.numAvailable then
 								if entry.numAvailable < 1 then
 									cellFrame.text:SetTextColor(1,0,0)
@@ -155,7 +173,7 @@ do
 
 							if entry.command == "purchase" then
 --print(entry.count, entry.numAvailable)
-								cellFrame.text:SetText(-math.floor(entry.numAvailable))
+								cellFrame.text:SetText(math.max(entry.count - entry.numAvailable,0))
 							else
 								cellFrame.text:SetText(entry.count)
 							end
@@ -365,8 +383,13 @@ do
 --		sf.childrenFirst = true
 
 		sf.IsEntryFiltered = function(self, entry)
-			if not entry.manualEntry and entry.numAvailable > 0 then
-				return true
+			if entry.manualEntry then return false end
+
+			if entry.command == "purchase" and entry.numAvailable < entry.count then
+--print(entry.manualEntry, entry.numAvailable, entry.count)
+--print("fitlered out", entry.command, entry.recipeID and GetSpellLink(entry.recipeID) or entry.itemID and GetItemInfo(entry.itemID))
+
+				return true -- true
 			else
 				return false
 			end
@@ -396,7 +419,7 @@ do
 
 		local function UpdateRowData(scrollFrame,entry,firstCall)
 			local player = queuePlayer
-
+--print("update row data", entry.command, entry.recipeID and GetSpellLink(entry.recipeID) or entry.itemID and GetItemInfo(entry.itemID))
 			if firstCall then
 				GnomeWorks.data.inventoryData[player].queue = table.wipe(GnomeWorks.data.inventoryData[player].queue or {})
 
@@ -404,7 +427,7 @@ do
 			end
 
 			if entry.command == "purchase" then
-				entry.numAvailable = GnomeWorks:GetInventoryCount(entry.itemID, player, "bag") - entry.count
+				entry.numAvailable = GnomeWorks:GetInventoryCount(entry.itemID, player, "bag")
 				entry.inQueue = GnomeWorks:GetInventoryCount(entry.itemID, player, "queue")
 				entry.bank = GnomeWorks:GetInventoryCount(entry.itemID, player, "bank")
 				entry.guildBank = GnomeWorks:GetInventoryCount(entry.itemID, player, "guildBank")
@@ -413,17 +436,25 @@ do
 
 			if entry.command == "process" then
 				local count = entry.count
+--				local inBag = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag")
+--				local inQueue = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag queue")
 
-				entry.numAvailable = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag queue")
+				entry.inQueue = GnomeWorks:GetInventoryCount(entry.itemID, player, "bag queue")
+				entry.numAvailable = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag")
+--print(GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag"), GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag queue"), count)
 --[[
 
 ]]
-				if false and entry.numAvailable >= count then
-					if entry.subGroup then
-						entry.subGroup.expanded = false
-					end
+
+			end
+
+			if entry.numAvailable >= entry.count then
+				if entry.subGroup then
+					entry.subGroup.expanded = false
 				end
 			end
+
+--print("done updating")
 		end
 
 
@@ -643,6 +674,7 @@ do
 
 				if entry then
 					entry.manualEntry = i
+					entry.noHide = true
 				end
 			end
 
@@ -854,7 +886,7 @@ do
 						doTradeEntry = entry
 
 						if skillIndex then
-						GnomeWorks:print("executing ",GnomeWorks:GetRecipeName(entry.recipeID),"("..(skillIndex or "nil")..") x",math.min(entry.count, entry.numAvailable))
+							GnomeWorks:print("executing ",GnomeWorks:GetRecipeName(entry.recipeID),"x",math.min(entry.count, entry.numAvailable))
 							DoTradeSkill(skillIndex,math.min(entry.count, entry.numAvailable))
 						else
 							GnomeWorks:print("can't find recipe:",GnomeWorks:GetRecipeName(entry.recipeID))

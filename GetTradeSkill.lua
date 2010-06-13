@@ -39,10 +39,8 @@
 ]]--
 
 do
-
-
 	local unlinkableTrades = {
-		[2656] = true,           -- smelting (from mining)
+		[2656] = true,			-- smelting (from mining)
 		[53428] = true,			-- runeforging
 		[51005] = true,			-- milling
 		[13262] = true,			-- disenchant
@@ -218,5 +216,15 @@ do
 				return _G[api](...)
 			end
 		end
+	end
+
+
+
+	function GnomeWorks:IsPseudoTrade(tradeID)
+		if unlinkableTrades[tradeID] and ((tradeID == 2656 or tradeID == 53428) and not GetSpellLink((GetSpellInfo(tradeID)))) then
+			return true
+		end
+
+		return false
 	end
 end
