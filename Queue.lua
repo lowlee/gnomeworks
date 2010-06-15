@@ -187,7 +187,7 @@ do
 				width = 14,
 				height = 14,
 			},
-			name = "     Recipe",
+			name = "Recipe",
 			width = 250,
 			OnClick = function(cellFrame, button, source)
 							if cellFrame:GetParent().rowIndex>0 then
@@ -389,7 +389,7 @@ do
 --print(entry.manualEntry, entry.numAvailable, entry.count)
 --print("fitlered out", entry.command, entry.recipeID and GetSpellLink(entry.recipeID) or entry.itemID and GetItemInfo(entry.itemID))
 
-				return true -- true
+				return true
 			else
 				return false
 			end
@@ -580,7 +580,7 @@ do
 		local newEntry, newCount = AddRecipeToConstructionQueue(tradeID, recipeID, count, data, sourcePlayer, overRide)
 
 		newEntry.manualEntry = primary
-
+		newEntry.noHide = primary and true
 
 		if  reagents[recipeID] then
 			for reagentID, numNeeded in pairs(reagents[recipeID]) do

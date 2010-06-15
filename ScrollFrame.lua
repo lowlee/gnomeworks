@@ -416,6 +416,7 @@ do
 
 	local function OnClick(frame, ...)
 		local rowFrame = frame:GetParent()
+		local scrollFrame = rowFrame:GetParent()
 
 		-- if frame has click function, the call it.  if it returns true, then don't call parent onclick (if it exists)
 		if frame.OnClick then
@@ -434,12 +435,13 @@ do
 		cellFrame:SetScript("OnClick", scrollFrame.OnClick)
 		cellFrame:SetScript("OnEnter", scrollFrame.OnEnter)
 		cellFrame:SetScript("OnLeave", scrollFrame.OnLeave)
-
+--[[
 		if cellFrame.button then
 			cellFrame.button:SetScript("OnClick", function(frame, mouseButton) scrollFrame.OnClick(cellFrame, mouseButton, "button") end)
 --			cellFrame.button:SetScript("OnEnter", function(frame, mouseButton) scrollFrame.OnEnter(cellFrame) end)
 --			cellFrame.button:SetScript("OnLeave", function(frame, mouseButton) scrollFrame.OnLeave(cellFrame) end)
 		end
+]]
 	end
 
 
@@ -557,6 +559,8 @@ do
 	local highlightMouseOver = { .9,.9,.7, .35 }
 	local highlightSelectedMouseOver = { ["r"] = 1, ["g"] = 1, ["b"] = 0.5, ["a"] = 0.5 }
 
+	local menuFrame = GnomeWorksMenuFrame or CreateFrame("Frame", "GnomeWorksMenuFrame", UIParent, "UIDropDownMenuTemplate")
+
 
 	local font = "GameFontHighlightSmall"
 
@@ -580,6 +584,31 @@ do
 		end
 	end
 
+	local function ToggleColumnDisplay(menuEntry, column, scrollFrame)
+		column.hidden = not column.hidden
+		scrollFrame:Refresh()
+	end
+
+	local function SelectColumns(scrollFrame)
+		local x, y = GetCursorPosition()
+		local uiScale = UIParent:GetEffectiveScale()
+
+		local cols = scrollFrame.columnMenu
+		local headers = scrollFrame.columnHeaders
+
+		for i = 1, #headers do
+			cols[i].text = headers[i].name
+			cols[i].checked = not headers[i].hidden
+			local visible = not headers[i].enabled or (type(headers[i].enabled)=="function" and headers[i].enabled())
+			cols[i].disabled = not visible
+			cols[i].arg1 = headers[i]
+			cols[i].arg2 = scrollFrame
+			cols[i].func = ToggleColumnDisplay
+		end
+
+		EasyMenu(cols, menuFrame, UIParent, x/uiScale,y/uiScale, "MENU", 5)
+	end
+
 
 	function GnomeWorks:CreateScrollingTable(parentFrame, backDrop, columnHeaders, onResize)
 --		local rows = floor((parentFrame:GetHeight() - 15) / 15)
@@ -598,8 +627,11 @@ do
 
 		sf.columnFrames = {}
 
+		sf.columnMenu = {}
+
 		for i=1,#columnHeaders do
 			sf.columnWidth[i] = sf.columnHeaders[i].width
+			sf.columnMenu[i] = {}
 
 			local c = CreateFrame("Frame",nil,sf)
 
@@ -620,7 +652,6 @@ do
 
 			sf.headerWidth = sf.headerWidth + sf.columnHeaders[i].width
 		end
-
 
 
 		sf.HighlightColumn = function(scrollFrame,index,invert)
@@ -658,6 +689,7 @@ do
 			scrollFrame.headerWidth = scrollFrame.headerWidth + header.width
 
 
+			sf.columnMenu[newIndex] = {}
 			scrollFrame.columnWidth[newIndex] = header.width
 			scrollFrame.columnHeaders[newIndex] = header
 
@@ -674,14 +706,18 @@ do
 			local x = 0
 			local headers = scrollFrame.columnHeaders
 
-			if not cols or #cols ~= #headers then
+			if true or not cols or #cols ~= #headers then
 				local rowHeight = scrollFrame.rowHeight
 
-				rowFrame.cols = {}
+				if not rowFrame.cols then
+					rowFrame.cols = {}
+				end
 
 				for i=1,#headers do
 					if not rowFrame.cols[i] then
 						local c = CreateFrame("Button", nil, rowFrame)
+						c.index = i
+						c.scrollFrame = scrollFrame
 
 						c:EnableMouse(true)
 						c:RegisterForClicks("AnyUp")
@@ -712,26 +748,39 @@ do
 						c.text:SetPoint("RIGHT", c, "RIGHT", -2,0)
 						c.text:SetJustifyH((rowFrame.rowIndex==0 and headers[i].headerAlign) or headers[i].align or "LEFT")
 
-						c.OnClick = headers[i].OnClick
-						c.OnEnter = headers[i].OnEnter
-						c.OnLeave = headers[i].OnLeave
+						c.OnClick = function(frame,mb) local func = frame.scrollFrame.columnHeaders[frame.index].OnClick if func then func(frame,mb) end end
+						c.OnEnter = function(frame,mb) local func = frame.scrollFrame.columnHeaders[frame.index].OnEnter if func then func(frame,mb) end end
+						c.OnLeave = function(frame,mb) local func = frame.scrollFrame.columnHeaders[frame.index].OnLeave if func then func(frame,mb) end end
 
 						rowFrame.cols[i] = c
-
-						if headers[i].button then
-							c.button = CreateFrame("button", nil, c)
-							c.button:SetWidth(headers[i].button.width or 16)
-							c.button:SetHeight(headers[i].button.height or 16)
-							c.button:SetNormalTexture(headers[i].button.normalTexture)
-							c.button:SetHighlightTexture(headers[i].button.highlightTexture)
-
-							c.button:SetPoint("LEFT")
-	--						c.button:Hide()
-						end
 
 						c.header = headers[i]
 
 						scrollFrame:SetHandlerScripts(c)
+					end
+
+
+					if headers[i].button and not rowFrame.cols[i].button then
+						local c = rowFrame.cols[i]
+
+						c.button = CreateFrame("button", nil, c)
+						c.button:SetWidth(headers[i].button.width or 16)
+						c.button:SetHeight(headers[i].button.height or 16)
+						c.button:SetNormalTexture(headers[i].button.normalTexture)
+						c.button:SetHighlightTexture(headers[i].button.highlightTexture)
+
+						c.button:SetPoint("LEFT")
+
+						if rowFrame.rowIndex == 0 then
+							c.text:SetPoint("LEFT",c,"LEFT",16,0)
+						end
+
+
+						c.button:SetScript("OnClick", function(frame, mouseButton)
+							c.scrollFrame.columnHeaders[c.index].OnClick(c, mouseButton, "button")
+						end)
+
+--						c.button:Hide()
 					end
 				end
 			end
@@ -760,6 +809,7 @@ do
 			end
 		end
 
+
 		sf.Refresh = function(scrollFrame)
 			local headers = scrollFrame.columnHeaders
 			local visibleWidth = 0
@@ -769,7 +819,7 @@ do
 				local visible = not headers[i].enabled or (type(headers[i].enabled)=="function" and headers[i].enabled())
 				local width = scrollFrame.columnWidth[i]
 
-				if visible then
+				if visible and not headers[i].hidden then
 					scrollFrame.columnFrames[i]:Show()
 				else
 					scrollFrame.columnFrames[i]:Hide()
@@ -797,6 +847,7 @@ do
 			scrollFrame:RefreshRows()
 		end
 
+
 		sf.DrawColumns = function(scrollFrame, rowFrame, rowData)
 			scrollFrame:InitColumns(rowFrame)
 			local headers = scrollFrame.columnHeaders
@@ -805,8 +856,13 @@ do
 
 			for i=1,#rowFrame.cols do
 				if scrollFrame.columnFrames[i]:IsShown() then
-
 					if rowFrame.rowIndex == 0 then
+						if headers[i].button then
+							rowFrame.cols[i].text:SetPoint("LEFT",rowFrame.cols[i],"LEFT",16,0)
+						else
+							rowFrame.cols[i].text:SetPoint("LEFT",rowFrame.cols[i],"LEFT",0,0)
+						end
+
 						rowFrame.cols[i].text:SetText(headers[i].name)
 
 						if headers[i].headerColor then
@@ -829,6 +885,14 @@ do
 						end
 					end
 
+					if not headers[i].button then
+						if rowFrame.cols[i].button then
+							rowFrame.cols[i].button:Hide()
+						end
+					end
+
+					rowFrame.cols[i].text:SetJustifyH((rowFrame.rowIndex==0 and headers[i].headerAlign) or headers[i].align or "LEFT")
+
 					rowFrame.cols[i]:Show()
 				else
 					rowFrame.cols[i]:Hide()
@@ -836,14 +900,180 @@ do
 			end
 		end
 
-
-
 		sf:SetScript("OnSizeChanged", function(frame,...) onResize(frame,...) frame:Draw() end)
-
 
 		onResize(sf,sf:GetWidth(), sf:GetHeight())
 
 		sf:Refresh()
+
+
+
+		sf.controlOverlay = CreateFrame("Frame",nil,sf)
+
+
+		local c = sf.controlOverlay
+		c:SetPoint("TOPLEFT")
+		c:SetPoint("BOTTOMRIGHT")
+		c:SetFrameLevel(c:GetFrameLevel()+5)
+
+		c.header = CreateFrame("Button",nil,c)
+		c.header:SetPoint("TOPLEFT",c,"TOPLEFT",0,15)
+		c.header:SetPoint("BOTTOMRIGHT",c,"TOPRIGHT")
+
+		local t = c.header:CreateTexture(nil,"OVERLAY")
+		t:SetPoint("TOPLEFT")
+		t:SetPoint("BOTTOMRIGHT")
+		t:SetTexture(1,1,0,.75)
+
+		local fs = c.header:CreateFontString(nil,"OVERLAY", "GameFontBlack")
+
+		fs:SetPoint("TOPLEFT")
+		fs:SetPoint("BOTTOMRIGHT")
+		fs:SetJustifyH("CENTER")
+
+		fs:SetText("Click to adjust column display")
+
+
+		c.columnPlacement = {}
+		c.columnEdges = {}
+
+		c:EnableMouse(true)
+		c.header:EnableMouse(true)
+		c.header:RegisterForClicks("AnyUp")
+
+		c:Hide()
+
+
+		c.header:SetScript("OnClick", function(frame)
+			SelectColumns(sf)
+		end)
+
+
+		c:SetScript("OnShow", function(frame)
+			for i=1,#sf.columnHeaders do
+				if not frame.columnPlacement[i] then
+					local f = CreateFrame("Frame", nil, c)
+					f:SetPoint("TOPLEFT",sf.columnFrames[i])
+					f:SetPoint("BOTTOMRIGHT",sf.columnFrames[i])
+
+
+					local t = f:CreateTexture(nil,"OVERLAY")
+					t:SetTexture(1,1,0,1)
+					t:SetPoint("TOPLEFT")
+					t:SetPoint("BOTTOMRIGHT")
+
+					f:SetAlpha(.05)
+
+					f.tex = t
+
+					frame.columnPlacement[i] = f
+
+					f:EnableMouse(true)
+					f:SetScript("OnEnter", function(colFrame)
+						colFrame:SetAlpha(.20)
+						frame.dragEnd = i
+						frame.dragEndFrame = colFrame
+					end)
+
+					f:SetScript("OnLeave", function(colFrame)
+						if colFrame ~= frame.dragStartFrame then
+							colFrame:SetAlpha(.05)
+						end
+						frame.dragEnd = nil
+						frame.dragEndFrame = nil
+					end)
+
+					f:SetScript("OnMouseDown", function(colFrame)
+						frame.dragStart = i
+						frame.dragStartFrame = colFrame
+						colFrame.tex:SetTexture(.5,1,0,1)
+					end)
+
+
+					f:SetScript("OnMouseUp", function(colFrame)
+						if frame.dragStartFrame then
+							frame.dragStartFrame.tex:SetTexture(1,1,0,1)
+							frame.dragStartFrame:SetAlpha(0.05)
+
+							if frame.dragEndFrame then
+								if frame.dragStart == frame.dragEnd then
+									frame.dragStart = nil
+									frame.dragStartFrame = nil
+								else
+		--							sf.columnHeaders[frame.dragStart].width, sf.columnHeaders[frame.dragEnd].width = sf.columnHeaders[frame.dragEnd].width, sf.columnHeaders[frame.dragStart].width
+
+									local t = table.remove(sf.columnHeaders,frame.dragStart)
+									table.insert(sf.columnHeaders,frame.dragEnd,t)
+
+									table.insert(sf.columnWidth,frame.dragEnd,table.remove(sf.columnWidth,frame.dragStart))
+
+
+									frame.dragStart = nil
+									frame.dragStartFrame = nil
+
+									sf:Refresh()
+								end
+							end
+						end
+
+					end)
+
+				end
+			end
+
+			for i=1,#sf.columnHeaders-1 do
+				if not frame.columnEdges[i] then
+					local f = CreateFrame("Frame", nil, c)
+					f:SetFrameLevel(f:GetFrameLevel()+5)
+--					f:SetPoint("CENTER",sf.columnFrames[i],"RIGHT")
+					f:SetPoint("TOP",sf.columnFrames[i],"TOPRIGHT")
+					f:SetPoint("BOTTOM",sf.columnFrames[i],"BOTTOMRIGHT")
+
+					f:SetWidth(16)
+--					f:SetHeight(32)
+
+
+					local t = f:CreateTexture(nil,"OVERLAY")
+					t:SetTexture(0,1,1,1)
+					t:SetPoint("TOPLEFT")
+					t:SetPoint("BOTTOMRIGHT")
+
+					f:SetAlpha(.05)
+
+
+					frame.columnPlacement[i] = f
+
+					f:EnableMouse(true)
+					f:SetScript("OnEnter", function(frame)
+						frame:SetAlpha(.2)
+					end)
+
+					f:SetScript("OnLeave", function(frame)
+						frame:SetAlpha(.05)
+					end)
+
+				end
+			end
+		end)
+
+
+		sf:RegisterEvent("MODIFIER_STATE_CHANGED")
+
+		sf:SetScript("OnEvent",function(frame, event, ...)
+--		print(frame,event,...)
+			if event == "MODIFIER_STATE_CHANGED" then
+				local metaKey, pressed = ...
+
+				if metaKey == "LALT" or metaKey == "RALT" then
+					if pressed == 1 then
+						sf.controlOverlay:Show()
+					else
+						sf.controlOverlay:Hide()
+					end
+				end
+			end
+		end)
+
 
 		return sf
 	end

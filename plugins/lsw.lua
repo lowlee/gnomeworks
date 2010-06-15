@@ -50,7 +50,7 @@ do
 
 
 		local function columnControl(cellFrame,button,source)
-			local filterMenuFrame = getglobal("GnomeWorksFilterMenuFrame")
+			local filterMenuFrame = GnomeWorksMenuFrame
 			local scrollFrame = cellFrame:GetParent():GetParent()
 
 			if button == "RightButton" then

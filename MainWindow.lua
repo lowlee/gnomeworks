@@ -122,7 +122,7 @@ do
 
 
 
-	local filterMenuFrame = CreateFrame("Frame", "GnomeWorksFilterMenuFrame", UIParent, "UIDropDownMenuTemplate")
+	local filterMenuFrame = GnomeWorksMenuFrame or CreateFrame("Frame", "GnomeWorksMenuFrame", UIParent, "UIDropDownMenuTemplate")
 
 
 	local activeFilterList = {}
@@ -149,7 +149,7 @@ do
 			for filterName,filter in pairs(filterParameters) do
 				if filter.enabled then
 					filtersEnabled = true
-					break;
+					break
 				end
 			end
 
@@ -254,6 +254,60 @@ do
 			notCheckable = true,
 			checked = false,
 			OnClick = adjustCraftFilterSource,
+		}
+	end
+
+
+
+
+	local inventorySourceMenu = {
+	}
+
+	local inventoryFilterMenu
+
+	inventoryFilterMenu = {
+		{
+			text = "Filter by Inventory: "..inventoryColors.alt.."alts",
+			menuList = inventorySourceMenu,
+			hasArrow = true,
+			filterIndex = #inventoryIndex,
+			func = function()
+				local parameters = inventorySourceMenu.parameters
+				local index = inventoryFilterMenu[1].filterIndex
+
+				inventorySourceMenu[index].func(nil, inventorySourceMenu[index].arg1)
+				inventoryFilterMenu[1].checked = parameters[index].enabled
+			end,
+			checked = false,
+		},
+	}
+
+
+	local function adjustInventoryFilterSource(parameters, index)
+		radioButton(parameters, index)
+
+		inventoryFilterMenu[1].checked = parameters[index].enabled
+		inventoryFilterMenu[1].filterIndex = index
+		inventoryFilterMenu[1].text = "Filter by Inventory: "..parameters[index].text
+	end
+
+
+	local inventoryFilterParameters = {}
+
+	for i,key in pairs(inventoryIndex) do
+		inventoryFilterParameters[i] = {
+			text = inventoryTags[key],
+			enabled = false,
+			func = function(entry)
+				if entry and entry[key] and entry[key] > 0 then
+					return false
+				end
+
+				return true
+			end,
+			notCheckable = true,
+			checked = false,
+			OnClick = adjustInventoryFilterSource,
 		}
 	end
 
@@ -370,7 +424,6 @@ do
 
 
 	local function columnControl(cellFrame,button,source)
-		local filterMenuFrame = getglobal("GnomeWorksFilterMenuFrame")
 		local scrollFrame = cellFrame:GetParent():GetParent()
 
 		if button == "RightButton" then
@@ -453,7 +506,7 @@ do
 				height = 14,
 			},
 			font = "GameFontHighlight",
-			name = "     Recipe",
+			name = "Recipe",
 			width = 250,
 			sortCompare = function(a,b)
 				return (a.index or 0) - (b.index or 0)
@@ -665,12 +718,104 @@ do
 							GameTooltip:Hide()
 						end,
 		}, -- [3]
+		{
+			font = "GameFontHighlightSmall",
+			name = "Inventory",
+			width = 60,
+			align = "CENTER",
+			sortCompare = function(a,b)
+				return (a.altInventory or 0) - (b.altInventory or 0)
+			end,
+			enabled = function()
+				return GnomeWorks.tradeID ~= 53428
+			end,
+			filterMenu = inventoryFilterMenu,
+			OnClick = 	function(cellFrame, button, source)
+							if cellFrame:GetParent().rowIndex == 0 then
+								columnControl(cellFrame, button, source)
+							end
+						end,
+			draw =	function (rowFrame,cellFrame,entry)
+							if entry.subGroup then
+								cellFrame.text:SetText("")
+								return
+							end
+
+							local bag,bank,guildBank,alt = entry.bagInventory or -1, entry.bankInventory or -1, entry.guildBankInventory or -1, entry.altInventory or -1
+
+							if alt+guildBank > 0 then
+								local display = ""
+
+								if bag > 0 then
+									display = string.format("%s%d|r",inventoryColors.bag,bag)
+								elseif bank > 0 then
+									display = string.format("%s%d|r",inventoryColors.bank,bank)
+								elseif guildBank > 0 then
+									display = string.format("%s%d|r",inventoryColors.guildBank,guildBank)
+								elseif alt > 0 then
+									display = string.format("%s%d|r",inventoryColors.alt,alt)
+								end
+
+								if alt > guildBank and guildBank > 0 then
+									display = string.format("%s/%s%s", display, inventoryColors.alt, alt)
+								elseif guildBank > bank and bank > 0 then
+									display = string.format("%s/%s%s", display, inventoryColors.guildBank, guildBank)
+								elseif bank > bag and bag > 0 then
+									display = string.format("%s/%s%s", display, inventoryColors.bank, bank)
+								end
+
+								cellFrame.text:SetText(display)
+							else
+								cellFrame.text:SetText("")
+							end
+						end,
+
+			OnEnter =	function (cellFrame)
+							if cellFrame:GetParent().rowIndex == 0 then
+								GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+								GameTooltip:ClearLines()
+								GameTooltip:AddLine("Inventory Counts",1,1,1,true)
+
+								GameTooltip:AddLine("Left-click to Sort")
+								GameTooltip:AddLine("Right-click to Adjust Filterings")
+
+								GameTooltip:Show()
+							else
+								local entry = cellFrame:GetParent().data
+
+								if entry and entry.recipeID then
+									if entry.altInventory and entry.altInventory + entry.guildBankInventory > 0 then
+										GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
+										GameTooltip:ClearLines()
+										GameTooltip:AddLine(GnomeWorks.player.."'s inventory")
+
+										local prevCount = 0
+										for i,key in pairs(inventoryIndex) do
+											local count = entry[key.."Inventory"] or 0
+
+											if count ~= prevCount then
+												GameTooltip:AddDoubleLine(inventoryTags[key],count)
+												prevCount = count
+											end
+										end
+
+
+										GameTooltip:Show()
+									end
+								end
+							end
+						end,
+			OnLeave = 	function()
+							GameTooltip:Hide()
+						end,
+		}, -- [4]
 	}
 
 
 	GnomeWorks:CreateFilterMenu(levelFilterParameters, levelFilterMenu, columnHeaders[1])
 	GnomeWorks:CreateFilterMenu(recipeLevelParameters, recipeLevelMenu, columnHeaders[2])
 	GnomeWorks:CreateFilterMenu(craftFilterParameters, craftSourceMenu, columnHeaders[3])
+	GnomeWorks:CreateFilterMenu(inventoryFilterParameters, inventorySourceMenu, columnHeaders[4])
 
 
 
@@ -812,8 +957,10 @@ do
 				entry.guildBank = guildBank
 				entry.alt = math.max(alt, guildBank)
 
+				local itemLink = GnomeWorks:GetTradeSkillItemLink(entry.index)
+
+
 				if not entry.itemColor then
-					local itemLink = GnomeWorks:GetTradeSkillItemLink(entry.index)
 
 					local _,itemRarity,reqLevel
 					local itemColor
@@ -822,6 +969,8 @@ do
 						_,_,itemRarity,_,reqLevel = GetItemInfo(itemLink)
 
 						itemColor = itemQualityColor[itemRarity]
+
+
 					else
 						itemColor = itemQualityColor[0]
 					end
@@ -833,6 +982,18 @@ do
 					entry.itemColor = itemColor
 				end
 
+				if itemLink then
+
+					local itemID = tonumber(string.match(itemLink,"item:(%d+)"))
+
+					entry.bagInventory  = GnomeWorks:GetInventoryCount(itemID, player, "craftedBag queue")
+					entry.vendorInventory = GnomeWorks:GetInventoryCount(itemID, player, "vendor craftedBag queue")
+					entry.bankInventory = GnomeWorks:GetInventoryCount(itemID, player, "vendor craftedBank queue")
+					entry.guildBankInventory = GnomeWorks:GetInventoryCount(itemID, player, "vendor craftedGuildBank queue")
+					entry.altInventory = GnomeWorks:GetInventoryCount(itemID, "faction", "vendor craftedGuildBank queue")
+
+					entry.alt = math.max(entry.altInventory, entry.guildBankInventory)
+				end
 			end
 		end
 
