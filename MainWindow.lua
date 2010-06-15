@@ -982,17 +982,23 @@ do
 					entry.itemColor = itemColor
 				end
 
+				entry.bagInventory = 0
+				entry.bankInventory = 0
+				entry.guildBankInventory = 0
+				entry.altInventory = 0
+
 				if itemLink then
 
 					local itemID = tonumber(string.match(itemLink,"item:(%d+)"))
 
-					entry.bagInventory  = GnomeWorks:GetInventoryCount(itemID, player, "craftedBag queue")
-					entry.vendorInventory = GnomeWorks:GetInventoryCount(itemID, player, "vendor craftedBag queue")
-					entry.bankInventory = GnomeWorks:GetInventoryCount(itemID, player, "vendor craftedBank queue")
-					entry.guildBankInventory = GnomeWorks:GetInventoryCount(itemID, player, "vendor craftedGuildBank queue")
-					entry.altInventory = GnomeWorks:GetInventoryCount(itemID, "faction", "vendor craftedGuildBank queue")
+					if itemID then
+						entry.bagInventory  = GnomeWorks:GetInventoryCount(itemID, player, "craftedBag queue")
+						entry.bankInventory = GnomeWorks:GetInventoryCount(itemID, player, "craftedBank queue")
+						entry.guildBankInventory = GnomeWorks:GetInventoryCount(itemID, player, "craftedGuildBank queue")
+						entry.altInventory = GnomeWorks:GetInventoryCount(itemID, "faction", "craftedGuildBank queue")
 
-					entry.alt = math.max(entry.altInventory, entry.guildBankInventory)
+						entry.alt = math.max(entry.altInventory, entry.guildBankInventory)
+					end
 				end
 			end
 		end
