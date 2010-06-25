@@ -578,7 +578,9 @@ do
 								entry.skillColor = GnomeWorks:GetSkillColor(entry.index)
 							end
 
-							cr,cg,cb = entry.skillColor.r, entry.skillColor.g, entry.skillColor.b
+							if entry.skillColor then
+								cr,cg,cb = entry.skillColor.r, entry.skillColor.g, entry.skillColor.b
+							end
 						end
 
 						cellFrame.text:SetTextColor(cr,cg,cb)
@@ -789,13 +791,16 @@ do
 										GameTooltip:ClearLines()
 										GameTooltip:AddLine(GnomeWorks.player.."'s inventory")
 
-										local prevCount = 0
+										local prev = 0
 										for i,key in pairs(inventoryIndex) do
-											local count = entry[key.."Inventory"] or 0
+											if key ~= "vendor" then
+												local count = entry[key.."Inventory"] or 0
 
-											if count ~= prevCount then
-												GameTooltip:AddDoubleLine(inventoryTags[key],count)
-												prevCount = count
+												if prev ~= count then
+													GameTooltip:AddDoubleLine(inventoryTags[key],count)
+												end
+
+												prev = count
 											end
 										end
 
@@ -827,7 +832,7 @@ do
 			end
 
 			if GnomeWorks.detailFrame:IsShown() then
-				skillFrame:SetPoint("BOTTOMLEFT",GnomeWorks.detailFrame,"TOPLEFT",0,20)
+				skillFrame:SetPoint("BOTTOMLEFT",GnomeWorks.detailFrame,"TOPLEFT",0,25)
 			else
 				skillFrame:SetPoint("BOTTOMLEFT",20,35)
 			end
@@ -945,11 +950,19 @@ do
 			local player = GnomeWorks.player
 
 			if not entry.subGroup then
+				local onHand = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag")
+
 				local bag = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "craftedBag queue")
 				local vendor = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "vendor craftedBag queue")
 				local bank = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "vendor craftedBank queue")
 				local guildBank = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "vendor craftedGuildBank queue")
 				local alt = GnomeWorks:InventoryRecipeIterations(entry.recipeID, "faction", "vendor craftedGuildBank queue")
+
+				if onHand > 0 then
+					entry.craftable = true
+				else
+					entry.craftable = nil
+				end
 
 				entry.bag = bag
 				entry.vendor = vendor
@@ -992,12 +1005,12 @@ do
 					local itemID = tonumber(string.match(itemLink,"item:(%d+)"))
 
 					if itemID then
-						entry.bagInventory  = GnomeWorks:GetInventoryCount(itemID, player, "craftedBag queue")
-						entry.bankInventory = GnomeWorks:GetInventoryCount(itemID, player, "craftedBank queue")
-						entry.guildBankInventory = GnomeWorks:GetInventoryCount(itemID, player, "craftedGuildBank queue")
-						entry.altInventory = GnomeWorks:GetInventoryCount(itemID, "faction", "craftedGuildBank queue")
+						entry.altInventory = GnomeWorks:GetInventoryCount(itemID, "faction", "guildBank")
+						entry.guildBankInventory = GnomeWorks:GetInventoryCount(itemID, player, "guildBank")
+						entry.bankInventory = GnomeWorks:GetInventoryCount(itemID, player, "bank")
+						entry.bagInventory  = GnomeWorks:GetInventoryCount(itemID, player, "bag")
 
-						entry.alt = math.max(entry.altInventory, entry.guildBankInventory)
+						entry.altInventory = math.max(entry.altInventory, entry.guildBankInventory)
 					end
 				end
 			end
@@ -1215,8 +1228,41 @@ do
 
 
 	function GnomeWorks:CreateControlFrame(frame)
+		local function MaterialsOnHand(button)
+			local entry = sf.dataMap[GnomeWorks.selectedSkill]
+
+			if entry then
+				if entry.craftable then
+					button:Enable()
+					return
+				end
+			end
+			button:Disable()
+		end
+
+
+		local function MaterialsOnAlt(button)
+			local entry = sf.dataMap[GnomeWorks.selectedSkill]
+
+			if entry then
+				if entry.alt and entry.alt >= 1 then
+					button:Enable()
+					return
+				end
+			end
+			button:Disable()
+		end
+
+
+		local function Create(button)
+			local numItems = button.count
+
+			DoTradeSkill(GnomeWorks.selectedSkill, numItems)
+		end
+
+
 		local function AddToQueue(button)
-			local numItems = button.count or 1
+			local numItems = button.count
 
 			local recipeLink = self:GetTradeSkillRecipeLink(GnomeWorks.selectedSkill)
 
@@ -1306,13 +1352,37 @@ do
 			end
 		end
 
-
+--[[
 		local buttons = {
 			{ text = "Add To Queue",  operation = AddToQueue, count = 1 },
 			{ text = "Queue All", operation = AddToQueue },
 			{ text = "Plugins", operation = ShowPlugins },
 --			{ text = "Back", operation = PopRecipe },
 		}
+]]
+
+		local buttons = {}
+
+
+		local function SetRepeatCount(button)
+--print("validate",buttons[1].count)
+			button:SetText(buttons[1].count)
+		end
+
+
+		local buttonConfig = {
+			{ text = "Create", operation = Create, width = 50, validate = MaterialsOnHand },
+			{ text = "Queue", operation = AddToQueue, width = 50 },
+			{ style = "EditBox", label = "QueueCount", width = 50, default = 1, validate = SetRepeatCount },
+			{ text = "Queue All", operation = AddToQueue, width = 70, validate = MaterialsOnAlt },
+
+			{ text = "Plugins", operation = ShowPlugins, width = 50 },
+		}
+
+
+
+
+
 		local position = 0
 
 		controlFrame = CreateFrame("Frame", nil, frame)
@@ -1320,26 +1390,107 @@ do
 		controlFrame:SetHeight(20)
 		controlFrame:SetWidth(200)
 
-		controlFrame:SetPoint("TOP", self.skillFrame, "BOTTOM", 0, 1)
+		controlFrame:SetPoint("TOP", self.skillFrame, "BOTTOM", 0, -2)
 
-		for i, config in pairs(buttons) do
-			local newButton = CreateFrame("Button", nil, controlFrame, "UIPanelButtonTemplate")
+		for i, config in pairs(buttonConfig) do
+			if not config.style or config.style == "Button" then
+				local newButton = CreateFrame("Button", nil, controlFrame, "UIPanelButtonTemplate")
 
-			newButton:SetPoint("LEFT", position,0)
-			newButton:SetWidth(100)
-			newButton:SetHeight(18)
-			newButton:SetNormalFontObject("GameFontNormalSmall")
-			newButton:SetHighlightFontObject("GameFontHighlightSmall")
+				newButton:SetPoint("LEFT", position,0)
+				newButton:SetWidth(config.width)
+				newButton:SetHeight(18)
+				newButton:SetNormalFontObject("GameFontNormalSmall")
+				newButton:SetHighlightFontObject("GameFontHighlightSmall")
+				newButton:SetDisabledFontObject("GameFontDisableSmall")
 
-			newButton:SetText(config.text)
+				newButton:SetText(config.text)
 
-			newButton.count = config.count
-			newButton:SetScript("OnClick", function(button) config.operation(button) end )
+				newButton:SetScript("OnClick", config.operation)
 
-			position = position + 100
+				newButton.validate = config.validate
+
+				buttons[i] = newButton
+
+
+				position = position + config.width
+			else
+				local newButton = CreateFrame(config.style, nil, controlFrame)
+
+				newButton:SetPoint("LEFT", position,0)
+				newButton:SetWidth(config.width)
+				newButton:SetHeight(18)
+				newButton:SetFontObject("GameFontHighlightSmall")
+--				newButton:SetHighlightFontObject("GameFontHighlightSmall")
+
+--				newButton:SetText(config.text or "")
+
+				newButton.validate = config.validate
+
+				if config.style == "EditBox" then
+					newButton:SetAutoFocus(false)
+
+					newButton:SetNumeric(true)
+
+--					newButton:SetScript("OnEnterPressed", EditBox_ClearFocus)
+					newButton:SetScript("OnEscapePressed", EditBox_ClearFocus)
+					newButton:SetScript("OnEditFocusLost", EditBox_ClearHighlight)
+					newButton:SetScript("OnEditFocusGained", EditBox_HighlightText)
+
+
+					newButton:SetScript("OnEnterPressed", function(f)
+						local n = f:GetNumber()
+
+						if n<=0 then
+							f:SetNumber(1)
+
+							buttons[1].count = 1
+							buttons[2].count = 1
+						else
+							buttons[1].count = n
+							buttons[2].count = n
+						end
+
+						EditBox_ClearFocus(f)
+					end)
+
+					newButton:SetJustifyH("CENTER")
+					newButton:SetJustifyV("CENTER")
+
+					local searchBackdrop  = {
+							bgFile = "Interface\\AddOns\\GnomeWorks\\Art\\frameInsetSmallBackground.tga",
+							edgeFile = "Interface\\AddOns\\GnomeWorks\\Art\\frameInsetSmallBorder.tga",
+							tile = true, tileSize = 16, edgeSize = 16,
+							insets = { left = 10, right = 10, top = 8, bottom = 10 }
+						}
+
+					self.Window:SetBetterBackdrop(newButton, searchBackdrop)
+
+					buttons[1].count = config.default
+					buttons[2].count = config.default
+
+--					newButton:SetNumber()
+
+					newButton:SetText("")
+					newButton:SetMaxLetters(4)
+
+				end
+
+				buttons[i] = newButton
+
+				position = position + config.width
+			end
 		end
 
 		controlFrame:SetWidth(position)
+
+		GnomeWorks:RegisterMessageDispatch("GnomeWorksDetailsChanged", function()
+			for i, b in pairs(buttons) do
+				if b.validate then
+					b:validate()
+				end
+			end
+		end)
+
 
 		return controlFrame
 	end
@@ -1504,11 +1655,11 @@ do
 
 		table.insert(UISpecialFrames, "GnomeWorksFrame")
 
-		frame:SetScript("OnShow", function() PlaySound("igCharacterInfoOpen") end)
-		frame:SetScript("OnHide", function() CloseTradeSkill() PlaySound("igCharacterInfoClose") end)
+		frame:HookScript("OnShow", function() PlaySound("igCharacterInfoOpen") end)
+		frame:HookScript("OnHide", function() CloseTradeSkill() PlaySound("igCharacterInfoClose") end)
 
 
-		self:RegisterMessage("GnomeWorksScanComplete", "ScanComplete")
+		self:RegisterMessageDispatch("GnomeWorksScanComplete", "ScanComplete")
 
 		return frame
 	end

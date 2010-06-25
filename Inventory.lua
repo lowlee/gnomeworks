@@ -128,7 +128,7 @@ do
 			end
 
 			if not numCraftable then
-				numCraftable = 0
+				numCraftable = LARGE_NUMBER
 			end
 
 			GnomeWorksDB.vendorOnly[recipeID] = vendorOnly
@@ -319,7 +319,7 @@ do
 			DebugSpam("|cffff0000WARNING: GnomeWorks Inventory Scan took ",math.floor(elapsed*100)/100," seconds")
 		end
 
-		GnomeWorks:SendMessage("GnomeWorksInventoryScanComplete")
+		GnomeWorks:SendMessageDispatch("GnomeWorksInventoryScanComplete")
 	end
 
 end

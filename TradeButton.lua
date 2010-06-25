@@ -25,7 +25,7 @@ do
 --			SetItemRef(tradeString,frame.tradeLink, button)
 			if IsShiftKeyDown() then
 				if (not ChatEdit_InsertLink(frame.tradeLink)) then
-					ChatFrameEditBox:Show()
+					ChatEdit_GetLastActiveWindow():Show()
 					ChatEdit_InsertLink(frame.tradeLink)
 				end
 			else
@@ -73,7 +73,7 @@ do
 
 		frame.buttons = {}
 
-		for i=1,#tradeSkillList,1 do					-- iterate thru all skills in defined order for neatness (professions, secondary, class skills)
+		for i=1,#tradeSkillList,1 do
 			local tradeID = tradeSkillList[i]
 			local spellName = self:GetTradeName(tradeID)
 			local tradeLink

@@ -69,6 +69,8 @@ do
 
 	local merchantLocked
 	function GnomeWorks:MERCHANT_SHOW(...)
+		if self:GetExecutionHold("ITEM_PUSH", "MERCHANT_SHOW", ...) then return end
+
 		if merchantLocked then return end
 
 		merchantLocked = true
@@ -84,7 +86,7 @@ do
 				RecordMerchantItem(itemID, i)
 
 
-				local onHand = self:GetInventoryCount(itemID, self.player, "craftedBag queue")
+				local onHand = self:GetInventoryCount(itemID, self.player, "bag queue")
 
 				if onHand < 0 then
 					local count = -onHand
@@ -95,6 +97,8 @@ do
 					local numPurchase = math.ceil(count/quantity)
 --print(numAvailable)
 					if numAvailable ~= 0 then
+						self:SetExecutionHold("ITEM_PUSH")			-- hold off buying any more until a ITEM_PUSH has occured
+
 						local numStacksNeeded    		= math.floor(count/stackSize);
 						local numVendorStacksPerStack 	= math.floor(stackSize/quantity);
 						local subStackCount        		= math.ceil((count-(numStacksNeeded*stackSize))/quantity);

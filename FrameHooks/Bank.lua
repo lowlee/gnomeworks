@@ -87,7 +87,8 @@ do
 		local itemMoved
 
 		-- temporarily disable bag update scanning while we're grabbing items from the bank.  we'll do a manual adjustment after each retrieval
-		self:UnregisterEvent("BAG_UPDATE")
+		-- (if only -- i don't think unregisters happen until after the current event cycle)
+--		self:UnregisterEvent("BAG_UPDATE")
 
 		bankLocked = true
 
@@ -144,7 +145,7 @@ do
 
 		bankLocked = nil
 
-		self:RegisterEvent("BAG_UPDATE")
+--		self:RegisterEvent("BAG_UPDATE")
 
 		if itemMoved then
 			self:InventoryScan()

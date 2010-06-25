@@ -235,31 +235,32 @@ do
 
 
 
+	local function SortCompare(a,b)
+		while a.subGroup and #a.subGroup.entries>1 do
+			a = a.subGroup.entries[1]
+		end
+
+		while b.subGroup and #b.subGroup.entries>1 do
+			b = b.subGroup.entries[1]
+		end
+
+
+		local result = scrollFrame.SortCompare(a,b)
+
+		if result == 0 then
+			result = a.index - b.index
+		end
+
+		if scrollFrame.sortInvert then
+			result = -result
+		end
+
+		if result > 0 then return true end
+		return false
+	end
+
 -- sorts and then counts the entries that aren't filtered out
 	local function SortData(scrollFrame, data)
-		local function SortCompare(a,b)
-			while a.subGroup and #a.subGroup.entries>1 do
-				a = a.subGroup.entries[1]
-			end
-
-			while b.subGroup and #b.subGroup.entries>1 do
-				b = b.subGroup.entries[1]
-			end
-
-
-			local result = scrollFrame.SortCompare(a,b)
-
-			if result == 0 then
-				result = a.index - b.index
-			end
-
-			if scrollFrame.sortInvert then
-				result = -result
-			end
-
-			if result > 0 then return true end
-			return false
-		end
 
 		if data and data.entries then
 			local count = 0

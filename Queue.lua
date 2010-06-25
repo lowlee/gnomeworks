@@ -757,6 +757,8 @@ do
 
 		self:ShowQueueList()
 		self:ShowSkillList()
+
+		self:SendMessageDispatch("GnomeWorksDetailsChanged")
 	end
 
 
@@ -962,6 +964,8 @@ do
 	function GnomeWorks:CreateQueueWindow()
 		frame = self.Window:CreateResizableWindow("GnomeWorksQueueFrame", nil, 200, 300, ResizeMainWindow, GnomeWorksDB.config)
 
+		frame:DockWindow(self.MainWindow)
+
 
 		frame:SetMinResize(240,200)
 
@@ -995,7 +999,7 @@ do
 --		frame:SetParent(self.MainWindow)
 
 
-		self:RegisterMessage("GnomeWorksInventoryScanComplete", function() if frame:IsShown() then GnomeWorks:ShowQueueList() end end)
+		self:RegisterMessageDispatch("GnomeWorksInventoryScanComplete", function() if frame:IsShown() then GnomeWorks:ShowQueueList() end end)
 
 		CreateControlButtons(frame)
 

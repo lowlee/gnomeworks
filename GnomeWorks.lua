@@ -16,6 +16,153 @@ LibStub("AceEvent-3.0"):Embed(GnomeWorks)
 LibStub("AceTimer-3.0"):Embed(GnomeWorks)
 
 
+-- execution holds
+-- the idea here is to put off processing until a particular event has fired
+-- this is needed for syncing data from the server
+do
+	local executionHoldFrame = CreateFrame("Frame",nil,UIParent)
+	executionHoldFrame.hold = {}
+
+--	executionHoldFrame:RegisterAllEvents()
+
+	executionHoldFrame:SetScript("OnEvent", function(frame, event, ...)
+--print("execution hold system",event)
+		if frame.hold[event] then
+			for method, params in pairs(frame.hold[event]) do
+				GnomeWorks[method](GnomeWorks, event, ...)
+			end
+
+			frame.hold[event] = nil
+
+			frame:UnregisterEvent(event)
+		end
+	end)
+
+
+	-- this flags an event as delaying operations that need this particular function
+	function GnomeWorks:SetExecutionHold(event)
+--print("set hold event",event)
+		executionHoldFrame:RegisterEvent(event)
+
+		if not executionHoldFrame.hold[event] then
+			executionHoldFrame.hold[event] = {}
+		end
+	end
+
+	-- this function is called by any method that relies on up-to-date info
+	-- if there is a hold for the event, then the method is tabled until the event has fired
+	function GnomeWorks:GetExecutionHold(event, method, ...)
+--print("check for hold on", event)
+		if not executionHoldFrame.hold[event] then
+			return false
+		else
+			if not executionHoldFrame.hold[event][method] then
+				executionHoldFrame.hold[event][method] = {...}
+			end
+		end
+
+		return true
+	end
+end
+
+
+
+-- message dispatch
+do
+	local dispatchTable = {}
+
+	function GnomeWorks:RegisterMessageDispatch(message, func)
+		if dispatchTable[message] then
+			local t = dispatchTable[message]
+			t[#t+1] = func
+		else
+			dispatchTable[message] = { func }
+		end
+	end
+
+
+	function GnomeWorks:SendMessageDispatch(message)
+		if dispatchTable[message] then
+			t = dispatchTable[message]
+
+			for k,func in pairs(t) do
+				if func ~= "delete" then
+					if type(func) == "function" and func() then					-- message returns true when it's set to fire once
+						t[k] = "delete"
+					elseif type(func) == "string" and GnomeWorks[func](GnomeWorks) then
+						t[k] = "delete"
+					end
+				end
+			end
+
+			local s,e = 1,#t
+
+			while s <= e do
+				if t[s] == "delete" then
+					t[s] = t[e]
+					t[e] = nil
+					e = e - 1
+				else
+					s = s + 1
+				end
+			end
+		end
+	end
+
+end
+
+
+
+-- test
+--[[
+do
+	local function TestEB()
+		local eb = CreateFrame("EditBox", nil, UIParent)
+
+		eb:SetWidth(100)
+		eb:SetHeight(100)
+		eb:SetPoint("CENTER")
+
+		eb:SetNumeric(true)
+
+		eb:SetAutoFocus(false)
+
+		eb:SetFontObject("GameFontNormal")
+
+		eb:SetScript("OnEnterPressed", EditBox_ClearFocus)
+		eb:SetScript("OnEscapePressed", EditBox_ClearFocus)
+		eb:SetScript("OnEditFocusLost", EditBox_ClearHighlight)
+		eb:SetScript("OnEditFocusGained", EditBox_HighlightText)
+
+		eb:SetJustifyH("CENTER")
+		eb:SetJustifyV("CENTER")
+
+		local searchBackdrop  = {
+				bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+				edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+				tile = true, tileSize = 16, edgeSize = 16,
+				insets = { left = 4, right = 4, top = 4, bottom = 4 }
+			}
+
+		eb:SetBackdrop(eb, searchBackdrop)
+
+		eb:SetNumber(1000)
+
+		eb:SetMaxLetters(4)
+	end
+
+
+	local testFrame = CreateFrame("Frame")
+
+	testFrame:SetScript("OnUpdate", function(f)
+		TestEB()
+		f:Hide()
+	end)
+
+end
+]]
+
+
 -- handle load sequence
 do
 	-- To fix Blizzard's bug caused by the new "self:SetFrameLevel(2);"
@@ -116,8 +263,6 @@ do
 
 		TradeSkillFrame_Show = function()
 		end
-
-
 
 		if LibStub then
 			self.libPT = LibStub:GetLibrary("LibPeriodicTable-3.1", true)

@@ -327,6 +327,8 @@ DebugSpam("done parsing skill list")
 				end
 			end
 		end
+
+		self:SendMessageDispatch("GnomeWorksDetailsChanged")
 	end
 
 	local function DoRecipeSelection(recipeID)
@@ -355,8 +357,10 @@ DebugSpam("done parsing skill list")
 			end
 
 
-			GnomeWorks:UnregisterMessage("GnomeWorksScanComplete")
+--			GnomeWorks:UnregisterMessage("GnomeWorksScanComplete")
 --		end
+
+		return true
 	end
 
 
@@ -377,7 +381,7 @@ DebugSpam("done parsing skill list")
 				self:OpenTradeLink(self:GetTradeLink(tradeID, player), player)
 			end
 
-			GnomeWorks:RegisterMessage("GnomeWorksScanComplete", function() DoRecipeSelection(recipeID) end)
+			GnomeWorks:RegisterMessageDispatch("GnomeWorksScanComplete", function() DoRecipeSelection(recipeID) end)
 		else
 			DoRecipeSelection(recipeID)
 		end
@@ -407,7 +411,7 @@ DebugSpam("done parsing skill list")
 				end
 
 
-				GnomeWorks:RegisterMessage("GnomeWorksScanComplete", function() GnomeWorks:SelectSkill(skill) end)
+				GnomeWorks:RegisterMessageDispatch("GnomeWorksScanComplete", function() GnomeWorks:SelectSkill(skill) end)
 			else
 				self:SelectSkill(skill)
 			end
@@ -723,7 +727,8 @@ DebugSpam("done parsing skill list")
 
 
 		GnomeWorks:ScheduleTimer("UpdateMainWindow",.1)
-		GnomeWorks:SendMessage("GnomeWorksScanComplete")
+		GnomeWorks:SendMessageDispatch("GnomeWorksScanComplete")
+		GnomeWorks:SendMessageDispatch("GnomeWorksDetailsChanged")
 
 		return skillData, player, tradeID
 	end

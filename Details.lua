@@ -392,6 +392,10 @@ do
 		sf:RegisterRowUpdate(UpdateRowData)
 
 
+		GnomeWorks:RegisterMessageDispatch("GnomeWorksDetailsChanged", function()
+			sf:Refresh()
+		end)
+
 		return reagentFrame
 	end
 
@@ -536,7 +540,7 @@ do
 		detailNameButton:SetScript("OnEnter", function(frame,...)
 			GameTooltip:SetOwner(frame, "ANCHOR_TOP")
 			GameTooltip:ClearLines()
-			GameTooltip:AddLine("Shift-Click to Link Recipe")
+			GameTooltip:AddLine("Shift-Click to Link Recipe|rCtrl-Click to Dress Up")
 			GameTooltip:Show()
 
 			detailNameLabel:SetTextColor(1,1,1)
@@ -701,6 +705,10 @@ do
 
 		end
 
+
+		GnomeWorks:RegisterMessageDispatch("GnomeWorksDetailsChanged", function()
+			self:ShowDetails(self.selectedSkill)
+		end)
 
 		return detailFrame
 	end

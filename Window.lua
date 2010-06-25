@@ -13,6 +13,14 @@ local Window = {}
 ]]
 
 do
+	local opposingPoint = {
+		["LEFT"] = "RIGHT",
+		["RIGHT"] = "LEFT",
+		["TOP"] = "BOTTOM",
+		["BOTTOM"] = "TOP",
+	}
+
+
 	local textureQuads = {
 		LEFT = 0,
 		RIGHT = 1,
@@ -66,7 +74,7 @@ do
 	end
 
 
-	function Window:SetBetterBackdropColor(frame,...)
+	local function SetBetterBackdropColor(frame,...)
 		if not frame or not frame.backDrop then
 			return
 		end
@@ -88,7 +96,7 @@ do
 
 
 
-	function Window:SetBetterBackdrop(frame, bd)
+	local function SetBetterBackdrop(frame, bd)
 		if not frame.backDrop then
 			frame.backDrop = CreateFrame("Frame", nil, frame)
 
@@ -207,9 +215,34 @@ do
 	end
 
 
-	function Window:CreateResizableWindow(frameName,windowTitle, width, height, resizeFunction, config)
+
+	local function DockWindow(frame, parent, point, relativePoint, offX, offY)
+		point = point or "LEFT"
+		relativePoint = relativePoint or opposingPoint[point] or "CENTER"
+		offX = offX or 0
+		offY = offY or 0
+
+		frame:SetPoint(point, parent, relativePoint, offX, offY)
+
+		frame.dockParent = parent
+		frame.dockPoint = point
+		frame.dockParams = { point, parent, relativePoint, offX, offY }
+
+		parent.dockChildren[frame] = frame.dockParams
+
+		if point == "LEFT" or point == "RIGHT" then
+			frame:SetHeight(parent:GetHeight())
+		else
+			frame:SetWidth(parent:GetWidth())
+		end
+
+	end
+
+
+
+	function Window:CreateResizableWindow(frameName, windowTitle, width, height, resizeFunction, config)
 		local frame = CreateFrame("Frame",frameName,UIParent)
-		frame:Hide()
+--		frame:Hide()
 
 --		frame:SetFrameStrata("DIALOG")
 
@@ -235,11 +268,13 @@ do
 		frame:SetWidth(width)
 		frame:SetHeight(height)
 
+		frame.dockChildren = {}
 
-		self:SetBetterBackdrop(frame,{bgFile = "Interface\\AddOns\\GnomeWorks\\Art\\newFrameBackground.tga",
+
+		SetBetterBackdrop(frame,{bgFile = "Interface\\AddOns\\GnomeWorks\\Art\\newFrameBackground.tga",
 												edgeFile = "Interface\\AddOns\\GnomeWorks\\Art\\newFrameBorder.tga",
 												tile = true, tileSize = 48, edgeSize = 48,
-												insets = { left = 4, right = 4, top = 4, bottom = 4 }})
+												insets = { left = 3, right = 3, top = 3, bottom = 3 }})
 --[[
 		self:SetBetterBackdrop(frame,{bgFile = "Interface\\AddOns\\GnomeWorks\\Art\\resizableBarberFrameBG.tga",
 												edgeFile = "Interface\\AddOns\\GnomeWorks\\Art\\resizableBarberFrameBorder.tga",
@@ -247,7 +282,14 @@ do
 												insets = { left = 4, right = 4, top = 4, bottom = 4 }})
 ]]
 
-		frame:SetScript("OnSizeChanged", function() resizeFunction() end)
+		frame:SetScript("OnSizeChanged", 	function(frame, w,h)
+												if frame.dockChildren then
+													for child,params in pairs(frame.dockChildren) do
+														child:SetHeight(h)
+													end
+												end
+												resizeFunction()
+											end)
 
 		frame.SavePosition = function(f)
 			local frameName = f:GetName()
@@ -264,6 +306,14 @@ do
 			end
 		end
 
+		frame.SaveSize = function(f)
+			local frameName = f:GetName()
+
+			if frameName then
+				config.window[frameName].width = f:GetWidth()
+				config.window[frameName].height = f:GetHeight()
+			end
+		end
 
 --[[
 		mouseHintTexture = frame:CreateTexture(nil,"OVERLAY")
@@ -290,9 +340,64 @@ do
 		frame:SetScript("OnLeave", function() print("OnLeave") mouseHintTexture:Hide() end)
 ]]
 
-		frame:SetScript("OnMouseDown", function() frame:StartSizing(GetSizingPoint(frame)) end)
-		frame:SetScript("OnMouseUp", function() frame:StopMovingOrSizing() frame:SavePosition() end)
-		frame:SetScript("OnHide", function() frame:StopMovingOrSizing() frame:SavePosition() end)
+		frame:SetScript("OnMouseDown", function()
+			local sizePoint = GetSizingPoint(frame)
+
+			if not frame.dockParent or not frame.dockParent:IsShown() then
+				frame:StartSizing(GetSizingPoint(frame))
+			else
+				if sizePoint == opposingPoint[frame.dockPoint] then
+					frame:StartSizing(GetSizingPoint(frame))
+				end
+			end
+		end)
+
+		frame:SetScript("OnMouseUp", function()
+			if not frame.dockParent or not frame.dockParent:IsShown() then
+				frame:StopMovingOrSizing()
+				frame:SavePosition()
+			else
+				frame:StopMovingOrSizing()
+				frame:SaveSize()
+
+				frame:ClearAllPoints()
+				frame:SetPoint(unpack(frame.dockParams))
+			end
+		end)
+
+		frame:SetScript("OnHide", function()
+			if not frame.dockParent or not frame.dockParent:IsShown() then
+				frame:StopMovingOrSizing()
+				frame:SavePosition()
+			end
+
+			for child,params in pairs(frame.dockChildren) do
+				local frameName = child:GetName()
+
+				local x, y = config.window[frameName].x, config.window[frameName].y
+				local width, height = config.window[frameName].width, config.window[frameName].height
+
+
+				child:ClearAllPoints()
+
+				child:SetPoint("CENTER",x,y)
+				child:SetWidth(width)
+				child:SetHeight(height)
+			end
+		end)
+
+
+		frame:SetScript("OnShow", function()
+			local width, height = frame:GetWidth(), frame:GetHeight()
+
+			for child,params in pairs(frame.dockChildren) do
+				child:ClearAllPoints()
+--				child:SetWidth(width)
+				child:SetHeight(height)
+
+				child:SetPoint(unpack(params))
+			end
+		end)
 
 
 		local windowMenu = {
@@ -311,7 +416,9 @@ do
 
 		mover:SetScript("OnMouseDown", function(self, button)
 			if button == "LeftButton" then
-				frame:StartMoving()
+				if not frame.dockParent or not frame.dockParent:IsShown() then
+					frame:StartMoving()
+				end
 			else
 				local x, y = GetCursorPosition()
 				local uiScale = UIParent:GetEffectiveScale()
@@ -319,12 +426,24 @@ do
 				EasyMenu(windowMenu, windowMenuFrame, getglobal("UIParent"), x/uiScale,y/uiScale, "MENU", 5)
 			end
 		end)
-		mover:SetScript("OnMouseUp", function() frame:StopMovingOrSizing() frame:SavePosition() end)
-		mover:SetScript("OnHide", function() frame:StopMovingOrSizing() frame:SavePosition() end)
+
+		mover:SetScript("OnMouseUp", function()
+			if not frame.dockParent or not frame.dockParent:IsShown() then
+				frame:StopMovingOrSizing()
+				frame:SavePosition()
+			end
+		end)
+
+		mover:SetScript("OnHide", function()
+			if not frame.dockParent or not frame.dockParent:IsShown() then
+				frame:StopMovingOrSizing()
+				frame:SavePosition()
+			end
+		end)
 
 
 
-		mover:SetHitRectInsets(10,10,10,10)
+		mover:SetHitRectInsets(15,15,15,15)
 
 		frame.mover = mover
 
@@ -427,12 +546,29 @@ do
 ]]
 
 		local closeButton = CreateFrame("Button",nil,frame,"UIPanelCloseButton")
-		closeButton:SetPoint("TOPRIGHT",6,6)
+		closeButton:SetPoint("TOPRIGHT",5,5)
 		closeButton:SetScript("OnClick", function() frame:Hide() if frame.title then frame.title:Hide() end end)
 		closeButton:SetFrameLevel(closeButton:GetFrameLevel()+1)
 		closeButton:SetHitRectInsets(8,8,8,8)
 
+
+
+		frame.DockWindow = DockWindow
+
+
+		frame.SetBetterBackDrop = SetBetterBackDrop
+		frame.SetBetterBackDropColor = SetBetterBackDropColor
+
+
 		return frame
+	end
+
+	function Window:SetBetterBackdrop(...)
+		SetBetterBackdrop(...)
+	end
+
+	function Window:SetBetterBackdropColor(...)
+		SetBetterBackdropColor(...)
 	end
 
 	GnomeWorks.Window = Window
