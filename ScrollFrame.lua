@@ -235,7 +235,7 @@ do
 
 
 
-	local function SortCompare(a,b)
+	local function SortCompare(scrollFrame, a,b)
 		while a.subGroup and #a.subGroup.entries>1 do
 			a = a.subGroup.entries[1]
 		end
