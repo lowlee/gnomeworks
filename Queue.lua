@@ -754,6 +754,7 @@ do
 
 	function GnomeWorks:AddToQueue(player, tradeID, recipeID, count)
 		local sourcePlayer
+		self:ShowQueueList()
 
 		if not self.data.playerData[player] then
 			sourcePlayer = player

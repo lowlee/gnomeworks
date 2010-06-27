@@ -259,6 +259,7 @@ do
 		return false
 	end
 
+
 -- sorts and then counts the entries that aren't filtered out
 	local function SortData(scrollFrame, data)
 
@@ -283,9 +284,9 @@ do
 
 			if scrollFrame.SortCompare then
 				if data.numEntries then
-					shellsort(data.entries, SortCompare, data.numEntries)
+					shellsort(data.entries, function(a,b) return SortCompare(scrollFrame, a,b) end, data.numEntries)
 				else
-					table.sort(data.entries, SortCompare)
+					table.sort(data.entries, function(a,b) return SortCompare(scrollFrame, a,b) end )
 				end
 
 			end
