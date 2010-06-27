@@ -128,8 +128,11 @@ do
 										else
 											GameTooltip:AddLine(string.format("%d craftable",entry.numAvailable))
 										end
-									elseif entry.command == "purchase" then
-										GameTooltip:AddLine(select(2,GetItemInfo(entry.itemID)))
+									end
+									if entry.command == "purchase" or entry.command == "process" and entry.itemID then
+										if entry.command == "purchase" then
+											GameTooltip:AddLine(select(2,GetItemInfo(entry.itemID)))
+										end
 
 										if entry.numAvailable < entry.count then
 											local prevCount = 0
@@ -142,12 +145,18 @@ do
 											end
 
 											for i,key in pairs(inventoryIndex) do
-												local count = entry[key] or 0
+												if key ~= "vendor" then
+													local count = entry[key] or 0
 
-												if count ~= prevCount then
-													GameTooltip:AddDoubleLine(inventoryTags[key],count)
-													prevCount = count
+													if count ~= prevCount then
+														GameTooltip:AddDoubleLine(inventoryTags[key],count)
+														prevCount = count
+													end
 												end
+											end
+
+											if prevCount == 0 then
+												GameTooltip:AddLine("None available")
 											end
 										end
 									end
@@ -172,10 +181,11 @@ do
 							end
 
 							if entry.command == "purchase" then
---print(entry.count, entry.numAvailable)
 								cellFrame.text:SetText(math.max(entry.count - entry.numAvailable,0))
-							else
+							elseif entry.command == "process" then
 								cellFrame.text:SetText(entry.count)
+							else
+								cellFrame.text:SetText("")
 							end
 						end,
 		}, -- [1]
@@ -300,8 +310,8 @@ do
 								cellFrame.text:SetTextColor(.7,.7,0)
 							end
 ]]
-						elseif entry.command == "needs" then
-							cellFrame.text:SetFormattedText("|T%s:16:16:0:-2|t %s", GetItemIcon(entry.itemID),(GetItemInfo(entry.itemID)))
+						elseif entry.command == "options" then
+							cellFrame.text:SetFormattedText("|T%s:16:16:0:-2|t Crafting Options for %s", GetItemIcon(entry.itemID),(GetItemInfo(entry.itemID)))
 							cellFrame.text:SetTextColor(.8,.25,.8)
 						end
 					end,
@@ -315,22 +325,28 @@ do
 	end
 
 
-	local function ReserveReagentsIntoQueue(queue)
+	local function ReserveReagentsIntoQueue(queue, factor)
 		if queue then
 			for k,entry in ipairs(queue) do
 				if entry.command == "process" then
-					for itemID,numNeeded in pairs(GnomeWorksDB.reagents[entry.recipeID]) do
-						GnomeWorks:ReserveItemForQueue(queuePlayer, itemID, numNeeded * entry.count)
-					end
+					local numIterations = entry.count * (factor or 1) - GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag queue")
 
-					for itemID,numMade in pairs(GnomeWorksDB.results[entry.recipeID]) do
-						GnomeWorks:ReserveItemForQueue(queuePlayer, itemID, -numMade * entry.count)
-					end
+					if numIterations > 0 then
+						for itemID,numNeeded in pairs(GnomeWorksDB.reagents[entry.recipeID]) do
+							GnomeWorks:ReserveItemForQueue(queuePlayer, itemID, numNeeded * numIterations)
+						end
 
-					if entry.subGroup then
-						ReserveReagentsIntoQueue(entry.subGroup.entries)
+						for itemID,numMade in pairs(GnomeWorksDB.results[entry.recipeID]) do
+							GnomeWorks:ReserveItemForQueue(queuePlayer, itemID, -numMade * numIterations)
+						end
+
+						if entry.subGroup then
+							ReserveReagentsIntoQueue(entry.subGroup.entries, numIterations/entry.count)
+						end
 					end
 				elseif entry.command == "purchase" then
+--					GnomeWorks:ReserveItemForQueue(queuePlayer, entry.itemID, entry.count * (factor or 1))
+
 					if entry.subGroup and entry.subGroup.expanded then
 						ReserveReagentsIntoQueue(entry.subGroup.entries)
 					else
@@ -372,7 +388,7 @@ do
 			}
 
 		queueFrame = CreateFrame("Frame",nil,frame)
-		queueFrame:SetPoint("BOTTOMLEFT",20,40)
+		queueFrame:SetPoint("BOTTOMLEFT",20,60)
 		queueFrame:SetPoint("TOP", frame, 0, -45)
 		queueFrame:SetPoint("RIGHT", frame, -20,0)
 
@@ -385,10 +401,9 @@ do
 		sf.IsEntryFiltered = function(self, entry)
 			if entry.manualEntry then return false end
 
-			if entry.command == "purchase" and entry.numAvailable < entry.count then
---print(entry.manualEntry, entry.numAvailable, entry.count)
---print("fitlered out", entry.command, entry.recipeID and GetSpellLink(entry.recipeID) or entry.itemID and GetItemInfo(entry.itemID))
-
+			if entry.command == "purchase" and entry.numAvailable >= entry.count then
+				return true
+			elseif entry.command == "process" and entry.numBag >= entry.numNeeded then
 				return true
 			else
 				return false
@@ -426,26 +441,19 @@ do
 				ReserveReagentsIntoQueue(GnomeWorks.data.constructionQueue[player])
 			end
 
+			entry.inQueue = GnomeWorks:GetInventoryCount(entry.itemID, player, "queue")
+
+			entry.bag = GnomeWorks:GetInventoryCount(entry.itemID, player, "bag")
+			entry.bank = GnomeWorks:GetInventoryCount(entry.itemID, player, "bank")
+			entry.guildBank = GnomeWorks:GetInventoryCount(entry.itemID, player, "guildBank")
+			entry.alt = GnomeWorks:GetInventoryCount(entry.itemID, "faction", "bank")
+
 			if entry.command == "purchase" then
-				entry.numAvailable = GnomeWorks:GetInventoryCount(entry.itemID, player, "bag")
-				entry.inQueue = GnomeWorks:GetInventoryCount(entry.itemID, player, "queue")
-				entry.bank = GnomeWorks:GetInventoryCount(entry.itemID, player, "bank")
-				entry.guildBank = GnomeWorks:GetInventoryCount(entry.itemID, player, "guildBank")
-				entry.alt = GnomeWorks:GetInventoryCount(entry.itemID, "faction", "bank")
+				entry.numAvailable = entry.bag
 			end
 
 			if entry.command == "process" then
-				local count = entry.count
---				local inBag = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag")
---				local inQueue = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag queue")
-
-				entry.inQueue = GnomeWorks:GetInventoryCount(entry.itemID, player, "bag queue")
 				entry.numAvailable = GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag")
---print(GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag"), GnomeWorks:InventoryRecipeIterations(entry.recipeID, player, "bag queue"), count)
---[[
-
-]]
-
 			end
 
 			if entry.numAvailable >= entry.count then
@@ -498,7 +506,7 @@ do
 	end
 
 
-	local function AddRecipeToConstructionQueue(tradeID, recipeID, count, data, sourcePlayer, overRide)
+	local function AddRecipeToConstructionQueue(tradeID, recipeID, count, itemID, numNeeded, data, sourcePlayer, overRide)
 
 		for i=1,#data do
 			if data[i].recipeID == recipeID then
@@ -507,9 +515,13 @@ do
 				if overRide then
 					addedToQueue = count - data[i].count
 					data[i].count = count
+					data[i].numNeeded = numNeeded
 				else
 					addedToQueue = count
 					data[i].count = data[i].count + count
+					if numNeeded then
+						data[i].numNeeded = data[i].numNeeded
+					end
 				end
 
 				return data[i], data[i].count
@@ -518,7 +530,7 @@ do
 
 
 
-		local newEntry = { index=#data+1, command = "process", tradeID = tradeID, recipeID = recipeID, count = count, sourcePlayer = sourcePlayer }
+		local newEntry = { index=#data+1, command = "process", tradeID = tradeID, recipeID = recipeID, count = count, itemID = itemID, numNeeded = numNeeded, sourcePlayer = sourcePlayer }
 
 		data[#data + 1] = newEntry
 
@@ -544,7 +556,7 @@ do
 	local recursionLimiter = {}
 	local cooldownUsed = {}
 
-	local function AddToConstructionQueue(player, tradeID, recipeID, count, data, sourcePlayer, primary, overRide)
+	local function AddToConstructionQueue(player, tradeID, recipeID, count, itemID, numNeeded, data, sourcePlayer, primary, overRide)
 		if not recipeID then return nil, 0 end
 
 		if recursionLimiter[recipeID] then return nil, 0 end
@@ -577,52 +589,67 @@ do
 
 --		local craftable = GnomeWorks:InventoryRecipeIterations(recipeID, player, "bag")
 
-		local newEntry, newCount = AddRecipeToConstructionQueue(tradeID, recipeID, count, data, sourcePlayer, overRide)
+		local newEntry, newCount = AddRecipeToConstructionQueue(tradeID, recipeID, count, itemID, numNeeded, data, sourcePlayer, overRide)
 
 		newEntry.manualEntry = primary
 		newEntry.noHide = primary and true
 
-		if  reagents[recipeID] then
+		if reagents[recipeID] then
 			for reagentID, numNeeded in pairs(reagents[recipeID]) do
---				local inBags = GnomeWorks:GetInventoryCount(reagentID, player, "bag")
-
+--				local bagInv = GnomeWorks:GetInventoryCount(reagentID, player, "bag")
+--				local bankInv = GnomeWorks:GetInventoryCount(reagentID, player, "bank")
+--				local guildBankInv = GnomeWorks:GetInventoryCount(reagentID, player, "guildBank")
+--				local altInv = GnomeWorks:GetInventoryCount(reagentID, "faction", "")
 
 				local inQueue = newCount * numNeeded
 
 --print((GetItemInfo(reagentInfo.id)), inBags, inQueue)
+
 				if not newEntry.subGroup then
 					newEntry.subGroup = { expanded = false, entries = {} }
 				end
 
-				local purchase = AddPurchaseToConstructionQueue(reagentID, inQueue, newEntry.subGroup.entries, sourcePlayer, true)			-- last arg true means set count instead of adding
+--				local purchase = AddPurchaseToConstructionQueue(reagentID, inQueue, newEntry.subGroup.entries, sourcePlayer, true)			-- last arg true means set count instead of adding
 
 				local source = itemSourceData[reagentID]
 
 				if source then
-
-
---						local optionGroup = { index = 1, command = "needs", itemID = reagentID, count = inQueue, subGroup = { entries = {}, expanded = false }}
-
---						table.insert(newEntry.subGroup.entries, optionGroup)
-
---						AddPurchaseToConstructionQueue(reagentID, inQueue, optionGroup.subGroup.entries)
+					local queue = newEntry.subGroup.entries
+					local craftingOptions = 0
 
 					for sourceRecipeID,numMade in pairs(source) do
 						if GnomeWorks:IsSpellKnown(sourceRecipeID) then
-							if not purchase.subGroup then
-								purchase.subGroup = { expanded = false, entries = {} }
-							end
-
-							AddToConstructionQueue(player, tradeIDs[sourceRecipeID], sourceRecipeID, math.ceil(inQueue / numMade), purchase.subGroup.entries, sourcePlayer, nil, true)
+							craftingOptions = craftingOptions + 1
 						end
 					end
 
-					if purchase.subGroup and #purchase.subGroup.entries == 0 then
-						purchase.subGroup = nil
+					if craftingOptions>1 then
+						local optionGroup = { index = 1, command = "options", itemID = reagentID, count = inQueue, subGroup = { entries = {}, expanded = false }}
+
+						table.insert(queue, optionGroup)
+
+						queue = optionGroup.subGroup.entries
+					end
+--						AddPurchaseToConstructionQueue(reagentID, inQueue, optionGroup.subGroup.entries)
+
+
+					if craftingOptions>0 then
+						for sourceRecipeID,numMade in pairs(source) do
+							if GnomeWorks:IsSpellKnown(sourceRecipeID) then
+								AddToConstructionQueue(player, tradeIDs[sourceRecipeID], sourceRecipeID, math.ceil(inQueue / numMade), reagentID, inQueue, queue, sourcePlayer, nil, true)
+							end
+						end
+--[[
+						if purchase.subGroup and #purchase.subGroup.entries == 0 then
+							purchase.subGroup = nil
+						end
+]]
+					else
+						AddPurchaseToConstructionQueue(reagentID, inQueue, newEntry.subGroup.entries, sourcePlayer, true)
 					end
 --					needsCrafting = true
 				else
---					AddPurchaseToConstructionQueue(reagentID, inQueue, newEntry.subGroup.entries)
+					AddPurchaseToConstructionQueue(reagentID, inQueue, newEntry.subGroup.entries, sourcePlayer, true)
 				end
 			end
 		else
@@ -670,7 +697,7 @@ do
 		if queue then
 			for i=1,#queue do
 
-				local entry = AddToConstructionQueue(player, queue[i].tradeID, queue[i].recipeID, queue[i].count, data, queue[i].sourcePlayer, true)
+				local entry = AddToConstructionQueue(player, queue[i].tradeID, queue[i].recipeID, queue[i].count, nil, nil, data, queue[i].sourcePlayer, true)
 
 				if entry then
 					entry.manualEntry = i
@@ -690,7 +717,7 @@ do
 			local player = queuePlayer
 
 			for k,q in pairs(queue) do
-				AddToConstructionQueue(player, q.tradeID, q.recipeID, q.count, queue, q.sourcePlayer, true, true)
+				AddToConstructionQueue(player, q.tradeID, q.recipeID, q.count, q.itemID, q.numNeeded, queue, q.sourcePlayer, true, true)
 			end
 		end
 	end
@@ -753,7 +780,7 @@ do
 --		table.insert(self.data.queueData[player], QueueCommandIterate(tradeID, recipeID, count))
 ]]
 
-		AddToConstructionQueue(player, tradeID, recipeID, count, queueData, sourcePlayer, true)
+		AddToConstructionQueue(player, tradeID, recipeID, count, nil, nil, queueData, sourcePlayer, true)
 
 		self:ShowQueueList()
 		self:ShowSkillList()
@@ -802,15 +829,17 @@ do
 
 
 	local function FirstCraftableEntry(queue)
-		for k,q in pairs(queue) do
-			if q.command == "process" and q.numAvailable > 0 and q.count > 0 then
-				return q
-			end
+		if queue then
+			for k,q in pairs(queue) do
+				if q.command == "process" and q.numAvailable > 0 and q.count > 0 then
+					return q
+				end
 
-			if q.subGroup then
-				local f = FirstCraftableEntry(q.subGroup.entries)
+				if q.subGroup then
+					local f = FirstCraftableEntry(q.subGroup.entries)
 
-				if f then return f end
+					if f then return f end
+				end
 			end
 		end
 	end
@@ -888,7 +917,7 @@ do
 						doTradeEntry = entry
 
 						if skillIndex then
-							GnomeWorks:print("executing ",GnomeWorks:GetRecipeName(entry.recipeID),"x",math.min(entry.count, entry.numAvailable))
+							GnomeWorks:print("executing",GnomeWorks:GetRecipeName(entry.recipeID),"x",math.min(entry.count, entry.numAvailable))
 							DoTradeSkill(skillIndex,math.min(entry.count, entry.numAvailable))
 						else
 							GnomeWorks:print("can't find recipe:",GnomeWorks:GetRecipeName(entry.recipeID))
@@ -919,42 +948,227 @@ do
 		end
 
 
-		local buttons = {
-			{ label = "Process",  operation = ProcessQueue },
-			{ label = "Stop", operation = StopProcessing },
-			{ label = "Clear", operation = ClearQueue },
+		local buttons = {}
+
+
+		local function SetProcessLabel(button)
+			local entry = FirstCraftableEntry(GnomeWorks.data.constructionQueue[queuePlayer])
+
+			if entry then
+				button:SetFormattedText("Process %s",GetSpellInfo(entry.recipeID))
+				button:Enable()
+			else
+				button:Disable()
+				button:SetText("Nothing To Process")
+			end
+		end
+
+
+		local buttonConfig = {
+			{ text = "Process", operation = ProcessQueue, width = 250, validate = SetProcessLabel, lineBreak = true },
+			{ text = "Stop", operation = StopProcessing, width = 125 },
+			{ text = "Clear", operation = ClearQueue, width = 125 },
 		}
 
+
+
+
+
 		local position = 0
+		local line = 0
 
 		controlFrame = CreateFrame("Frame", nil, frame)
 
-		controlFrame:SetHeight(20)
-		controlFrame:SetWidth(200)
 
-		controlFrame:SetPoint("TOP", queueFrame, "BOTTOM", 0, -2)
+--		controlFrame:SetPoint("LEFT",20,0)
+--		controlFrame:SetPoint("RIGHT",-20,0)
 
-		controlFrame.buttons = {}
 
-		for i, config in pairs(buttons) do
-			local newButton = CreateFrame("Button", nil, controlFrame, "UIPanelButtonTemplate")
+		local function CreateButton(parent, height)
+			local newButton = CreateFrame("Button", nil, parent)
+			newButton:SetHeight(height)
+			newButton:SetWidth(50)
+			newButton:SetPoint("CENTER")
 
-			newButton:SetPoint("LEFT", position,0)
-			newButton:SetWidth(60)
-			newButton:SetHeight(18)
-			newButton:SetNormalFontObject("GameFontNormalSmall")
-			newButton:SetHighlightFontObject("GameFontHighlightSmall")
+			newButton.state = {}
 
-			newButton:SetText(config.label)
+			for k,state in pairs({"Disabled", "Up", "Down", "Highlight"}) do
+				local f = CreateFrame("Frame",nil,newButton)
+				f:SetAllPoints()
 
-			newButton:SetScript("OnClick", config.operation)
+				f:SetFrameLevel(f:GetFrameLevel()-1)
 
-			position = position + 60
+				local leftTexture = f:CreateTexture(nil,"BACKGROUND")
+				local rightTexture = f:CreateTexture(nil,"BACKGROUND")
+				local middleTexture = f:CreateTexture(nil,"BACKGROUND")
 
-			controlFrame.buttons[i] = newButton
+				leftTexture:SetTexture("Interface\\Buttons\\UI-Panel-Button-"..state)
+				rightTexture:SetTexture("Interface\\Buttons\\UI-Panel-Button-"..state)
+				middleTexture:SetTexture("Interface\\Buttons\\UI-Panel-Button-"..state)
+
+				leftTexture:SetTexCoord(0,.25*.625, 0,.6875)
+				rightTexture:SetTexCoord(.75*.625,1*.625, 0,.6875)
+				middleTexture:SetTexCoord(.25*.625,.75*.625, 0,.6875)
+
+				leftTexture:SetPoint("LEFT")
+				leftTexture:SetWidth(height)
+				leftTexture:SetHeight(height)
+
+				rightTexture:SetPoint("RIGHT")
+				rightTexture:SetWidth(height)
+				rightTexture:SetHeight(height)
+
+				middleTexture:SetPoint("LEFT", height, 0)
+				middleTexture:SetPoint("RIGHT", -height, 0)
+				middleTexture:SetHeight(height)
+
+				if state == "Highlight" then
+					leftTexture:SetBlendMode("ADD")
+					rightTexture:SetBlendMode("ADD")
+					middleTexture:SetBlendMode("ADD")
+				end
+
+--				middleTexture:Hide()
+
+				newButton.state[state] = f
+
+				if state ~= "Up" then
+					f:Hide()
+				end
+			end
+
+			newButton:HookScript("OnEnter", function(b) b.state.Highlight:Show() end)
+			newButton:HookScript("OnLeave", function(b) b.state.Highlight:Hide() end)
+
+			newButton:HookScript("OnMouseDown", function(b) b.state.Down:Show() b.state.Up:Hide() end)
+			newButton:HookScript("OnMouseUp", function(b) b.state.Down:Hide() b.state.Up:Show() end)
+
+			return newButton
 		end
 
+
+		for i, config in pairs(buttonConfig) do
+			if not config.style or config.style == "Button" then
+--				local newButton = CreateFrame("Button", nil, controlFrame, "UIPanelButtonTemplate")
+
+				local newButton = CreateButton(controlFrame, 18)
+
+				newButton:SetPoint("LEFT", position,-line*20)
+				if config.width then
+					newButton:SetWidth(config.width)
+				else
+					newButton:SetPoint("RIGHT")
+					line = line + 1
+				end
+
+
+				newButton:SetNormalFontObject("GameFontNormalSmall")
+				newButton:SetHighlightFontObject("GameFontHighlightSmall")
+				newButton:SetDisabledFontObject("GameFontDisableSmall")
+
+				newButton:SetText(config.text)
+
+				newButton:SetScript("OnClick", config.operation)
+
+				newButton.validate = config.validate
+
+				buttons[i] = newButton
+
+
+				if newButton.validate then
+					newButton:validate()
+				end
+
+
+				position = position + (config.width or 0)
+			else
+				local newButton = CreateFrame(config.style, nil, controlFrame)
+
+				newButton:SetPoint("LEFT", position,line*20)
+				if config.width then
+					newButton:SetWidth(config.width)
+				else
+					newButton:SetPoint("RIGHT")
+					line = line + 1
+				end
+				newButton:SetHeight(18)
+				newButton:SetFontObject("GameFontHighlightSmall")
+--				newButton:SetHighlightFontObject("GameFontHighlightSmall")
+
+--				newButton:SetText(config.text or "")
+
+				newButton.validate = config.validate
+
+				if config.style == "EditBox" then
+					newButton:SetAutoFocus(false)
+
+					newButton:SetNumeric(true)
+
+--					newButton:SetScript("OnEnterPressed", EditBox_ClearFocus)
+					newButton:SetScript("OnEscapePressed", EditBox_ClearFocus)
+					newButton:SetScript("OnEditFocusLost", EditBox_ClearHighlight)
+					newButton:SetScript("OnEditFocusGained", EditBox_HighlightText)
+
+
+					newButton:SetScript("OnEnterPressed", function(f)
+						local n = f:GetNumber()
+
+						if n<=0 then
+							f:SetNumber(1)
+
+							buttons[1].count = 1
+							buttons[2].count = 1
+						else
+							buttons[1].count = n
+							buttons[2].count = n
+						end
+
+						EditBox_ClearFocus(f)
+					end)
+
+					newButton:SetJustifyH("CENTER")
+					newButton:SetJustifyV("CENTER")
+
+					local searchBackdrop  = {
+							bgFile = "Interface\\AddOns\\GnomeWorks\\Art\\frameInsetSmallBackground.tga",
+							edgeFile = "Interface\\AddOns\\GnomeWorks\\Art\\frameInsetSmallBorder.tga",
+							tile = true, tileSize = 16, edgeSize = 16,
+							insets = { left = 10, right = 10, top = 8, bottom = 10 }
+						}
+
+					self.Window:SetBetterBackdrop(newButton, searchBackdrop)
+
+					buttons[1].count = config.default
+					buttons[2].count = config.default
+
+--					newButton:SetNumber()
+
+					newButton:SetText("")
+					newButton:SetMaxLetters(4)
+
+				end
+
+				buttons[i] = newButton
+
+				position = position + (config.width or 0)
+			end
+
+			if config.lineBreak then
+				line = line + 1
+				position = 0
+			end
+		end
+
+		controlFrame:SetHeight(20+line*20)
 		controlFrame:SetWidth(position)
+
+		GnomeWorks:RegisterMessageDispatch("GnomeWorksDetailsChanged", function()
+			for i, b in pairs(buttons) do
+				if b.validate then
+					b:validate()
+				end
+			end
+		end)
 
 		return controlFrame
 	end
@@ -1000,16 +1214,22 @@ do
 
 
 		self:RegisterMessageDispatch("GnomeWorksInventoryScanComplete", function() if frame:IsShown() then GnomeWorks:ShowQueueList() end end)
+		self:RegisterMessageDispatch("GnomeWorksTradeScanComplete", function() if frame:IsShown() then GnomeWorks:ShowQueueList() end end)
+		self:RegisterMessageDispatch("GnomeWorksQueueChange", function() if frame:IsShown() then GnomeWorks:ShowQueueList() end end)
 
-		CreateControlButtons(frame)
 
+		local control = CreateControlButtons(frame)
+
+		control:SetPoint("TOP", sf, "BOTTOM", 0,0)
 
 
 		table.insert(UISpecialFrames, "GnomeWorksQueueFrame")
 
-		frame:SetScript("OnShow", function() PlaySound("igCharacterInfoOpen") end)
-		frame:SetScript("OnHide", function() PlaySound("igCharacterInfoClose") end)
+		frame:HookScript("OnShow", function() PlaySound("igCharacterInfoOpen")  GnomeWorks:ShowQueueList() end)
+		frame:HookScript("OnHide", function() PlaySound("igCharacterInfoClose") end)
 
+
+		frame:Hide()
 
 		return frame
 	end

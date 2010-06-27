@@ -236,6 +236,46 @@ do
 			frame:SetWidth(parent:GetWidth())
 		end
 
+
+		if not frame.dockTab then
+			frame.dockTab = CreateFrame("Button",nil,parent)
+
+			local tab = frame.dockTab
+
+			tab:SetPoint(point,parent,relativePoint,offX,offY)
+			tab:SetWidth(24)
+			tab:SetHeight(96)
+
+			tab:EnableMouse(true)
+
+			local bg = tab:CreateTexture(nil,"ARTWORK")
+--C:\Program Files\Games\World of Warcraft\Blizzard Interface Art (enUS)\Spellbook\UI-SpellBook-Tab-Unselected.blp
+
+--			bg:SetTexture("Interface\\Spellbook\\SpellBook-SkillLineTab.blp")
+			bg:SetTexture("Interface\\Spellbook\\UI-SpellBook-Tab-Unselected.blp")
+
+--			bg:SetRotation(3.14159/2)
+			bg:SetTexCoord(0,.3, 1,.3, 0,.8, 1,.8)
+
+			bg:SetAllPoints()
+
+
+			local t = tab:CreateTexture(nil,"ARTWORK")
+
+			t:SetTexture("Interface\\AddOns\\GnomeWorks\\Art\\expand_arrow_closed.tga")
+
+			t:SetPoint("LEFT")
+			t:SetWidth(16)
+			t:SetHeight(32)
+
+			t:SetVertexColor(1,1,1,.75)
+
+			tab:SetScript("OnClick", function() frame:Show() end)
+			frame:HookScript("OnShow", function(f) f.dockTab:Hide() end)
+			frame:HookScript("OnHide", function(f) f.dockTab:Show() end)
+
+			tab:Hide()
+		end
 	end
 
 

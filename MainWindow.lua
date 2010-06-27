@@ -1032,7 +1032,7 @@ do
 			self:ShowReagents(index)
 		end
 
-		self:ShowQueueList()
+--		self:ShowQueueList()
 
 		ResizeMainWindow()
 	end
