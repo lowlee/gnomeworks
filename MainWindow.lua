@@ -705,7 +705,9 @@ do
 											local count = entry[key] or 0
 
 											if count ~= prevCount then
-												GameTooltip:AddDoubleLine(inventoryTags[key],count)
+												if count ~= 0 then
+													GameTooltip:AddDoubleLine(inventoryTags[key],count)
+												end
 												prevCount = count
 											end
 										end
@@ -796,7 +798,7 @@ do
 											if key ~= "vendor" then
 												local count = entry[key.."Inventory"] or 0
 
-												if prev ~= count then
+												if prev ~= count and count ~= 0 then
 													GameTooltip:AddDoubleLine(inventoryTags[key],count)
 												end
 
@@ -834,7 +836,7 @@ do
 			if GnomeWorks.detailFrame:IsShown() then
 				skillFrame:SetPoint("BOTTOMLEFT",GnomeWorks.detailFrame,"TOPLEFT",0,25)
 			else
-				skillFrame:SetPoint("BOTTOMLEFT",20,35)
+				skillFrame:SetPoint("BOTTOMLEFT",20,55)
 			end
 		end
 	end
@@ -1005,7 +1007,7 @@ do
 					local itemID = tonumber(string.match(itemLink,"item:(%d+)"))
 
 					if itemID then
-						entry.altInventory = GnomeWorks:GetInventoryCount(itemID, "faction", "guildBank")
+						entry.altInventory = GnomeWorks:GetInventoryCount(itemID, "faction", "bank")
 						entry.guildBankInventory = GnomeWorks:GetInventoryCount(itemID, player, "guildBank")
 						entry.bankInventory = GnomeWorks:GetInventoryCount(itemID, player, "bank")
 						entry.bagInventory  = GnomeWorks:GetInventoryCount(itemID, player, "bag")

@@ -168,10 +168,10 @@ do
 							if cellFrame:GetParent().rowIndex == 0 then
 								GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
 								GameTooltip:ClearLines()
-								GameTooltip:AddLine("Craftability Counts",1,1,1,true)
+								GameTooltip:AddLine("Potential Reagent Availability",1,1,1,true)
 
 								GameTooltip:AddLine("Left-click to Sort")
-								GameTooltip:AddLine("Right-click to Adjust Filterings")
+--								GameTooltip:AddLine("Right-click to Adjust Filterings")
 
 								GameTooltip:Show()
 							else
@@ -188,11 +188,17 @@ do
 										local count = entry[key] or 0
 
 										if count ~= prevCount then
-											GameTooltip:AddDoubleLine(inventoryTags[key],count)
+											if count ~= 0 then
+												GameTooltip:AddDoubleLine(inventoryTags[key],count)
+											end
 											prevCount = count
 										end
 									end
 
+
+									if entry.reserved>0 then
+										GameTooltip:AddDoubleLine("|cffff0000reserved",entry.reserved)
+									end
 
 									GameTooltip:Show()
 								end
@@ -208,7 +214,7 @@ do
 
 						local bag, bank, guildBank, alt = entry.bag, entry.bank, entry.guildBank, entry.alt
 
-						if alt+guildBank > 0 then
+						if alt > 0 then
 							local display = ""
 	--[[
 							if bag > 0 then
@@ -241,14 +247,16 @@ do
 							end
 
 							if alt > guildBank and guildBank > 0 then
-								display = string.format("%s/%s%s", display, inventoryColors.alt, alt)
+								display = string.format("%s/%s%d", display, inventoryColors.alt, alt)
 							elseif guildBank > bank and bank > 0 then
-								display = string.format("%s/%s%s", display, inventoryColors.guildBank, guildBank)
+								display = string.format("%s/%s%d", display, inventoryColors.guildBank, guildBank)
 							elseif bank > bag and bag > 0 then
-								display = string.format("%s/%s%s", display, inventoryColors.bank, bank)
+								display = string.format("%s/%s%d", display, inventoryColors.bank, bank)
 							end
 
-
+							if entry.reserved>0 then
+								display = string.format("%s %s-%d",display, "|cffff0000", entry.reserved)
+							end
 
 							cellFrame.text:SetText(display)
 						else
@@ -362,15 +370,18 @@ do
 		local function UpdateRowData(scrollFrame,entry,firstCall)
 			local player = GnomeWorks.player
 
-			local bag = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBag queue")
-			local bank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBank queue")
-			local guildBank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedGuildBank queue")
-			local alt = GnomeWorks:GetInventoryCount(entry.id, "faction", "craftedGuildBank queue")
+			local bag = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBag")
+			local bank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBank")
+			local guildBank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedGuildBank")
+			local alt = GnomeWorks:GetInventoryCount(entry.id, "faction", "craftedBank")
 
 			entry.bag = bag
 			entry.bank = bank
 			entry.guildBank = guildBank
-			entry.alt = math.max(alt, guildBank)
+			entry.alt = alt
+
+			entry.reserved = math.abs(math.max(0,GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "queue")))
+
 
 			local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(entry.id)
 

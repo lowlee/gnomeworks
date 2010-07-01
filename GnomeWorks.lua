@@ -371,12 +371,14 @@ do
 	end
 
 
-	function GnomeWorks:OnTradeSkillShow()
+	function GnomeWorks:Initialize()
 		GnomeWorks:ParseSkillList()
 
 		GnomeWorks.MainWindow = GnomeWorks:CreateMainWindow()
 
 		GnomeWorks.QueueWindow = GnomeWorks:CreateQueueWindow()
+
+		GnomeWorks.MainWindow:Hide()
 
 
 		-- reset filters
@@ -414,11 +416,14 @@ do
 		end)
 
 		collectgarbage("collect")
+	end
 
-		if not IsAddOnLoaded("AddOnLoader") then
-			GnomeWorks:TRADE_SKILL_SHOW()
-			GnomeWorks:TRADE_SKILL_UPDATE()
-		end
+
+	function GnomeWorks:OnTradeSkillShow()
+		self:Initialize()
+
+		GnomeWorks:TRADE_SKILL_SHOW()
+		GnomeWorks:TRADE_SKILL_UPDATE()
 	end
 
 --[[
@@ -452,7 +457,7 @@ do
 			if name == "GnomeWorks" then
 --				GnomeWorks:ScheduleTimer("OnLoad",1)
 				GnomeWorks:OnLoad()
-				GnomeWorks:OnTradeSkillShow()
+				GnomeWorks:Initialize()
 				GnomeWorks:UnregisterEvent(event)
 			end
 		end)

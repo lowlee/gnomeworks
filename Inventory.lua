@@ -193,15 +193,20 @@ do
 			local count = 0
 
 			for player, inventoryData in pairs(self.data.inventoryData) do
+				local playerData = self.data.playerData[player]
 
 				for container in string.gmatch(containerList, "%a+") do
 					if container == "vendor" then
 						if self:VendorSellsItem(itemID) then
 							return LARGE_NUMBER
 						end
-					else
+					elseif container == "craftedGuildBank" and playerData.guild then
 						if inventoryData[container] then
 							count = count + (inventoryData[container][itemID] or 0)
+						end
+					else
+						if inventoryData["craftedBank"] then
+							count = count + (inventoryData["craftedBank"][itemID] or 0)
 						end
 					end
 				end
@@ -240,8 +245,12 @@ do
 				inventory["craftedBank"] = {}
 			end
 
-			if not inventory["craftedGuildBank"] and self.data.playerData[player].guild then
-				inventory["craftedGuildBank"] = {}
+			if self.data.playerData[player].guild then
+				if not inventory["craftedGuildBank"] then
+					inventory["craftedGuildBank"] = {}
+				end
+			else
+				inventory["craftedGuildBank"] = nil
 			end
 
 
@@ -278,12 +287,12 @@ do
 
 			for reagentID, count in pairs(inventory["bank"]) do
 				craftedBank[reagentID] = count
-				if self.data.playerData[player].guild then
+				if craftedGuildBank then
 					craftedGuildBank[reagentID] = count
 				end
 			end
 
-			if self.data.playerData[player].guild then
+			if craftedGuildBank then
 				local key = "GUILD:"..self.data.playerData[player].guild
 
 				local guildBankInventory = self.data.inventoryData[key]
@@ -293,8 +302,6 @@ do
 						craftedGuildBank[reagentID] = (craftedGuildBank[reagentID] or 0) + count
 					end
 				end
-			else
-				inventory["craftedGuildBank"] = nil
 			end
 
 
@@ -305,7 +312,7 @@ do
 				if GnomeWorks.data.itemSource[reagentID] then
 					self:InventoryReagentCraftability(craftedBag, reagentID, player, "craftedBag queue")
 					self:InventoryReagentCraftability(craftedBank, reagentID, player, "craftedBank queue")
-					if self.data.playerData[player].guild then
+					if craftedGuildBank then
 						self:InventoryReagentCraftability(craftedGuildBank, reagentID, player, "craftedGuildBank queue")
 					end
 				end

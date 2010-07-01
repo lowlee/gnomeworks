@@ -272,7 +272,7 @@ do
 
 				if entry.subGroup then
 					local subCount = SortData(scrollFrame, entry.subGroup)
-					if subCount>0 then
+					if subCount>0 or entry.noHide then
 						count = count + subCount + 1
 					end
 				else
