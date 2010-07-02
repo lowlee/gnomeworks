@@ -128,6 +128,76 @@ do
 	local activeFilterList = {}
 
 
+
+	local function filterText(entry, textFilter)
+		if textFilter and textFilter ~= "" then
+
+			if entry.recipeID then
+				local recipeID = entry.recipeID
+
+				if not tooltipRecipeCache[recipeID] then
+					local tipLines = tooltipScanner:NumLines()
+
+					tooltipRecipeCache[recipeID] = tipLines
+
+					tooltipScanner:SetOwner(frame, "ANCHOR_NONE")
+					tooltipScanner:SetHyperlink("spell:"..entry.recipeID)
+
+					for i=#tooltipRecipeCacheLeft,tipLines do
+						tooltipRecipeCacheLeft[i] = {}
+						tooltipRecipeCacheRight[i] = {}
+					end
+
+					for i=1, tipLines do
+						if _G["GWParsingTooltipTextLeft"..i]:GetText() then
+							tooltipRecipeCacheLeft[i][recipeID] = string.lower(_G["GWParsingTooltipTextLeft"..i]:GetText())
+						end
+
+						if _G["GWParsingTooltipTextRight"..i]:GetText() then
+							tooltipRecipeCacheRight[i][recipeID] = string.lower(_G["GWParsingTooltipTextRight"..i]:GetText())
+						end
+					end
+				end
+
+				local tipLines = tooltipRecipeCache[recipeID]
+
+				for w in string.gmatch(textFilter, "%a+") do
+					local found
+
+					for i=1, tipLines do
+						if tooltipRecipeCacheLeft[i][recipeID] and string.match(tooltipRecipeCacheLeft[i][recipeID], w, 1, true) then
+							found = true
+							break
+						end
+
+						if tooltipRecipeCacheRight[i][recipeID] and string.match(tooltipRecipeCacheRight[i][recipeID], w, 1, true) then
+							found = true
+							break
+						end
+					end
+
+					if not found then
+						return true
+					end
+				end
+			end
+		end
+
+		return false
+	end
+
+
+	local searchTextParameters = {
+		name = "SearchText",
+		enabled = false,
+		func = filterText,
+		arg = "",
+	}
+
+	activeFilterList["SearchText"] = searchTextParameters
+
+
+
 	function GnomeWorks:CreateFilterMenu(filterParameters, menu, column)
 		local function filterSet(button, setting)
 			filterParameters[setting].enabled = not filterParameters[setting].enabled
@@ -138,9 +208,9 @@ do
 
 
 			if filterParameters[setting].enabled then
-				activeFilterList[setting] = filterParameters[setting]
+				activeFilterList[filterParameters[setting].name] = filterParameters[setting]
 			else
-				activeFilterList[setting] = nil
+				activeFilterList[filterParameters[setting].name] = nil
 			end
 
 
@@ -242,6 +312,7 @@ do
 
 	for i,key in pairs(inventoryIndex) do
 		craftFilterParameters[i] = {
+			name = "Inventory"..key,
 			text = inventoryTags[key],
 			enabled = false,
 			func = function(entry)
@@ -318,6 +389,7 @@ do
 
 	local levelFilterParameters = {
 		{
+			name = "playerUsable",
 			text = "Player Meets Level Requirement",
 			enabled = false,
 			func = function(entry)
@@ -370,6 +442,7 @@ do
 
 	local recipeLevelParameters = {
 		{
+			name = "DifficultyOptimal",
 			text = "",
 			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
 			coords = {0,1,0,.25},
@@ -387,6 +460,7 @@ do
 			OnClick = adjustFilterIcon,
 		},
 		{
+			name = "DifficultyMedium",
 			text = "",
 			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
 			coords = {0,1,.25,.5},
@@ -403,6 +477,7 @@ do
 			OnClick = adjustFilterIcon,
 		},
 		{
+			name = "DifficultyEasy",
 			text = "",
 			icon = "Interface\\AddOns\\GnomeWorks\\Art\\skill_colors.tga",
 			coords = {0,1,.5,.75},
@@ -880,67 +955,14 @@ do
 		skillFrame.scrollFrame = sf
 
 
+
 		sf.IsEntryFiltered = function(self, entry)
 			for k,filter in pairs(activeFilterList) do
 				if filter.enabled then
-					if filter.func(entry) then
+					if filter.func(entry, filter.arg) then
 						return true
 					end
 				end
-			end
-
-			if textFilter and textFilter ~= "" then
-				if entry.recipeID then
-					local recipeID = entry.recipeID
-
-					if not tooltipRecipeCache[recipeID] then
-						local tipLines = tooltipScanner:NumLines()
-
-						tooltipRecipeCache[recipeID] = tipLines
-
-						tooltipScanner:SetOwner(frame, "ANCHOR_NONE")
-						tooltipScanner:SetHyperlink("spell:"..entry.recipeID)
-
-						for i=#tooltipRecipeCacheLeft,tipLines do
-							tooltipRecipeCacheLeft[i] = {}
-							tooltipRecipeCacheRight[i] = {}
-						end
-
-						for i=1, tipLines do
-							if _G["GWParsingTooltipTextLeft"..i]:GetText() then
-								tooltipRecipeCacheLeft[i][recipeID] = string.lower(_G["GWParsingTooltipTextLeft"..i]:GetText())
-							end
-
-							if _G["GWParsingTooltipTextRight"..i]:GetText() then
-								tooltipRecipeCacheRight[i][recipeID] = string.lower(_G["GWParsingTooltipTextRight"..i]:GetText())
-							end
-						end
-					end
-
-					local tipLines = tooltipRecipeCache[recipeID]
-
-					for w in string.gmatch(textFilter, "%a+") do
-						local found
-
-						for i=1, tipLines do
-							if tooltipRecipeCacheLeft[i][recipeID] and string.match(tooltipRecipeCacheLeft[i][recipeID], w, 1, true) then
-								found = true
-								break
-							end
-
-							if tooltipRecipeCacheRight[i][recipeID] and string.match(tooltipRecipeCacheRight[i][recipeID], w, 1, true) then
-								found = true
-								break
-							end
-						end
-
-						if not found then
-							return true
-						end
-					end
-				end
-
-				return false
 			end
 
 			return false
@@ -1029,12 +1051,7 @@ do
 	function GnomeWorks:ScanComplete()
 		local index = self.selectedSkill
 
-		if index then
-			self:ShowDetails(index)
-			self:ShowReagents(index)
-		end
-
---		self:ShowQueueList()
+		self:SendMessageDispatch("GnomeWorksDetailsChanged")
 
 		ResizeMainWindow()
 	end
@@ -1075,7 +1092,7 @@ do
 		if player and tradeID then
 			local key = player..":"..tradeID
 
-			local group = self:RecipeGroupFind(player, tradeID, "Blizzard", nil)
+			local group = self:RecipeGroupFind(player, tradeID, self.groupLabel or "By Category", self.group)
 
 			sf.data = group
 			sf:Refresh()
@@ -1124,7 +1141,17 @@ do
 
 	function GnomeWorks:SetFilterText(text)
 		textFilter = string.lower(text)
-		sf:Refresh()
+
+		if (text ~= "") then
+			searchTextParameters.enabled = true
+			searchTextParameters.arg = text
+		else
+			searchTextParameters.enabled = false
+			searchTextParameters.arg = ""
+		end
+
+		self:SendMessageDispatch("GnomeWorksSkillListChanged")
+--		sf:Refresh()
 	end
 
 
@@ -1493,7 +1520,6 @@ do
 			end
 		end)
 
-
 		return controlFrame
 	end
 
@@ -1557,9 +1583,18 @@ do
 
 		searchBox:SetScript("OnEnterPressed", EditBox_ClearFocus)
 		searchBox:SetScript("OnEscapePressed", EditBox_ClearFocus)
-		searchBox:SetScript("OnTextChanged", function(f) GnomeWorks:SetFilterText(f:GetText()) end)
 		searchBox:SetScript("OnEditFocusLost", EditBox_ClearHighlight)
 		searchBox:SetScript("OnEditFocusGained", EditBox_HighlightText)
+
+		searchBox:SetScript("OnTextChanged", function(f)
+			if f.oldText ~= f:GetText() then
+				GnomeWorks:SetFilterText(f:GetText())
+			end
+
+			f.oldText = f:GetText()
+		end)
+
+
 
 		searchBox:EnableMouse(true)
 		searchBox:SetFontObject("GameFontHighlightSmall")
@@ -1576,9 +1611,20 @@ do
 		clearSearch:SetScript("OnClick", function() searchBox:SetText("") EditBox_ClearFocus(searchBox) end)
 
 
-
-
 		self.searchBoxFrame = searchBox
+
+
+		local groupSelection = CreateFrame("Button", "GnomeWorksGrouping", frame, "UIDropDownMenuTemplate")
+		groupSelection:SetPoint("BOTTOMLEFT",searchBox,"TOPLEFT",-5,2)
+--		UIDropDownMenu_SetWidth(groupSelection, 200, 0)
+--		groupSelection.noResize = nil
+
+		GnomeWorksGroupingMiddle:SetPoint("RIGHT", searchBox,"RIGHT",-22,0)
+--		groupSelection:SetHeight(16)
+
+
+		groupSelection:SetScript("OnShow", function(dropDown) GnomeWorks:RecipeGroupDropdown_OnShow(dropDown) end)
+
 
 
 
@@ -1662,6 +1708,13 @@ do
 
 
 		self:RegisterMessageDispatch("GnomeWorksScanComplete", "ScanComplete")
+
+		GnomeWorks:RegisterMessageDispatch("GnomeWorksSkillListChanged", function()
+			self:ShowSkillList()
+
+			self:SendMessageDispatch("GnomeWorksDetailsChanged")
+		end)
+
 
 		return frame
 	end

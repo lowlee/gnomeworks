@@ -168,7 +168,8 @@ do
 							if cellFrame:GetParent().rowIndex == 0 then
 								GameTooltip:SetOwner(cellFrame, "ANCHOR_TOPLEFT")
 								GameTooltip:ClearLines()
-								GameTooltip:AddLine("Potential Reagent Availability",1,1,1,true)
+								GameTooltip:AddLine("Reagent Availability",1,1,1,true)
+								GameTooltip:AddLine("(includes craftable reagents)")
 
 								GameTooltip:AddLine("Left-click to Sort")
 --								GameTooltip:AddLine("Right-click to Adjust Filterings")
@@ -255,7 +256,7 @@ do
 							end
 
 							if entry.reserved>0 then
-								display = string.format("%s %s-%d",display, "|cffff0000", entry.reserved)
+								display = string.format("%s %s+%d",display, "|cffff0000", entry.reserved)
 							end
 
 							cellFrame.text:SetText(display)
@@ -370,17 +371,17 @@ do
 		local function UpdateRowData(scrollFrame,entry,firstCall)
 			local player = GnomeWorks.player
 
-			local bag = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBag")
-			local bank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBank")
-			local guildBank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedGuildBank")
-			local alt = GnomeWorks:GetInventoryCount(entry.id, "faction", "craftedBank")
+			local bag = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBag queue")
+			local bank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedBank queue")
+			local guildBank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedGuildBank queue")
+			local alt = GnomeWorks:GetInventoryCount(entry.id, "faction", "craftedBank queue")
 
 			entry.bag = bag
 			entry.bank = bank
 			entry.guildBank = guildBank
 			entry.alt = alt
 
-			entry.reserved = math.abs(math.max(0,GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "queue")))
+			entry.reserved = math.abs(math.min(0,GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "queue")))
 
 
 			local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(entry.id)
@@ -404,7 +405,7 @@ do
 
 
 		GnomeWorks:RegisterMessageDispatch("GnomeWorksDetailsChanged", function()
-			sf:Refresh()
+			GnomeWorks:ShowReagents(GnomeWorks.selectedSkill)
 		end)
 
 		return reagentFrame

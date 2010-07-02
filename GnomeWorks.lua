@@ -71,12 +71,14 @@ end
 do
 	local dispatchTable = {}
 
-	function GnomeWorks:RegisterMessageDispatch(message, func)
-		if dispatchTable[message] then
-			local t = dispatchTable[message]
-			t[#t+1] = func
-		else
-			dispatchTable[message] = { func }
+	function GnomeWorks:RegisterMessageDispatch(messageList, func)
+		for message in string.gmatch(messageList, "%a+") do
+			if dispatchTable[message] then
+				local t = dispatchTable[message]
+				t[#t+1] = func
+			else
+				dispatchTable[message] = { func }
+			end
 		end
 	end
 
@@ -354,6 +356,8 @@ do
 
 		GnomeWorks:ConstructPseudoTrades("All Recipes")
 
+
+		GnomeWorks.groupLabel = "By Category"
 
 
 		GnomeWorks:RegisterEvent("MERCHANT_UPDATE")

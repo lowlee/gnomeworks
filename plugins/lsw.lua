@@ -36,7 +36,8 @@ do
 		}
 
 		local costFilterParameters = {
-			hideUnprofitable = {
+			{
+				name = "HideUnprofitable",
 				text = "Hide Unprofitable",
 				enabled = false,
 				func = function(entry)

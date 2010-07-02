@@ -86,20 +86,22 @@ do
 							local rowFrame = cellFrame:GetParent()
 							if rowFrame.rowIndex>0 then
 								local entry = rowFrame.data
+--print(entry.manualEntry)
 
 								if entry.manualEntry then
 									if button == "RightButton" then
-										entry.count = entry.count - 1
+										entry.numNeeded = entry.numNeeded - entry.numMade
 									else
-										entry.count = entry.count + 1
+										entry.numNeeded = entry.numNeeded + entry.numMade
 									end
 
-									if entry.count < 0 then
-										entry.count = 0
+									if entry.numNeeded < 1 then
+										entry.numNeeded = 1
 									end
 
+									GnomeWorks:SendMessageDispatch("GnomeWorksQueueChanged")
 
-									GnomeWorks:ShowQueueList()
+--									GnomeWorks:ShowQueueList()
 								end
 							end
 						end,
@@ -356,8 +358,6 @@ do
 --print(factor)
 					local needed = entry.numNeeded * factor
 					local oldCount = entry.count
-
-
 
 					local available = GnomeWorks:GetInventoryCount(entry.itemID, player, "bag queue")
 
@@ -1101,8 +1101,9 @@ do
 			table.wipe(GnomeWorks.data.constructionQueue[queuePlayer])
 			table.wipe(GnomeWorks.data.inventoryData[queuePlayer]["queue"])
 
-			GnomeWorks:ShowQueueList()
-			GnomeWorks:ShowSkillList()
+			GnomeWorks:SendMessageDispatch("GnomeWorksDetailsChanged")
+			GnomeWorks:SendMessageDispatch("GnomeWorksSkillListChanged")
+			GnomeWorks:SendMessageDispatch("GnomeWorksQueueChanged")
 		end
 
 
@@ -1376,9 +1377,7 @@ do
 --		frame:SetParent(self.MainWindow)
 
 
-		self:RegisterMessageDispatch("GnomeWorksInventoryScanComplete", function() if frame:IsShown() then GnomeWorks:ShowQueueList() end end)
-		self:RegisterMessageDispatch("GnomeWorksTradeScanComplete", function() if frame:IsShown() then GnomeWorks:ShowQueueList() end end)
-		self:RegisterMessageDispatch("GnomeWorksQueueChange", function() if frame:IsShown() then GnomeWorks:ShowQueueList() end end)
+		self:RegisterMessageDispatch("GnomeWorksQueueChanged GnomeWorksTradeScanComplete GnomeWorksInventoryScanComplete", function() if frame:IsShown() then GnomeWorks:ShowQueueList() end end)
 
 
 		local control = CreateControlButtons(frame)

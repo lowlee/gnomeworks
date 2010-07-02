@@ -65,6 +65,9 @@ do
 	}
 
 
+	local skillIndexLookup = {}
+
+
 	local tradeIDByName = {}
 
 	for index, id in pairs(tradeIDList) do
@@ -75,10 +78,9 @@ do
 	tradeIDByName[GetSpellInfo(2575)] = 2656	-- special case for mining/smelting
 
 
-	GnomeWorks.data = { skillIndexLookup = {}, skillDB = {}, linkDB = {} }
+	GnomeWorks.data = { skillDB = {}, linkDB = {} }
 	local data = GnomeWorks.data
 
-	local skillIndexLookup = data.skillIndexLookup
 	local linkDB = data.linkDB
 
 
@@ -489,8 +491,8 @@ DebugSpam("done parsing skill list")
 		end
 
 
-	-- expand all headers, but turn off update events so we don't end up with recursion (fails under 3.3.3 -- boo)
---		self:UnregisterEvent("TRADE_SKILL_UPDATE")
+	-- expand all headers, but turn off update events so we don't end up with recursion
+		self:UnregisterEvent("TRADE_SKILL_UPDATE")
 		for i = 1, GetNumTradeSkills() do
 			local skillName, skillType, _, isExpanded = GetTradeSkillInfo(i)
 
@@ -501,7 +503,7 @@ DebugSpam("done parsing skill list")
 
 			end
 		end
---		self:RegisterEvent("TRADE_SKILL_UPDATE")
+		self:RegisterEvent("TRADE_SKILL_UPDATE")
 
 
 		local numSkills = GetNumTradeSkills()
@@ -509,9 +511,6 @@ DebugSpam("done parsing skill list")
 
 	DebugSpam("Scanning Trade "..(tradeName or "nil")..":"..(tradeID or "nil").." "..numSkills.." recipes")
 
-		if not skillIndexLookup[player] then
-			skillIndexLookup[player] = {}
-		end
 
 		local key = player..":"..tradeID
 
@@ -539,12 +538,32 @@ DebugSpam("done parsing skill list")
 
 		local currentGroup = nil
 
-		local mainGroup = self:RecipeGroupNew(player,tradeID,"Blizzard")
+		local mainGroup = self:RecipeGroupNew(player,tradeID,"By Category")
 
 		mainGroup.locked = true
 		mainGroup.autoGroup = true
 
 		self:RecipeGroupClearEntries(mainGroup)
+
+
+		local slotGroup = self:RecipeGroupNew(player,tradeID,"By Slot")
+
+		slotGroup.locked = true
+		slotGroup.autoGroup = true
+
+		self:RecipeGroupClearEntries(slotGroup)
+
+
+
+		local flatGroup = self:RecipeGroupNew(player,tradeID,"Flat")
+
+		flatGroup.locked = true
+		flatGroup.autoGroup = true
+
+		self:RecipeGroupClearEntries(flatGroup)
+
+
+
 
 		local groupList = {}
 
@@ -575,13 +594,10 @@ DebugSpam("done parsing skill list")
 							groupName = skillName
 						end
 
---						skillData[i] = "header "..skillName
---						skillData[i] = nil
-
-						currentGroup = self:RecipeGroupNew(player, tradeID, "Blizzard", groupName)
+						currentGroup = self:RecipeGroupNew(player, tradeID, "By Category", groupName)
 						currentGroup.autoGroup = true
 
-						self:RecipeGroupAddSubGroup(mainGroup, currentGroup, i)
+						self:RecipeGroupAddSubGroup(mainGroup, currentGroup, i, true)
 					else
 						local recipeLink = GetTradeSkillRecipeLink(i)
 						local recipeID = GetIDFromLink(recipeLink)
@@ -591,11 +607,16 @@ DebugSpam("done parsing skill list")
 							break
 						end
 
+
+						GnomeWorks:RecipeGroupAddRecipe(flatGroup, recipeID, i, true)
+
+
 						if currentGroup then
-							GnomeWorks:RecipeGroupAddRecipe(currentGroup, recipeID, i)
+							GnomeWorks:RecipeGroupAddRecipe(currentGroup, recipeID, i, true)
 						else
-							GnomeWorks:RecipeGroupAddRecipe(mainGroup, recipeID, i)
+							GnomeWorks:RecipeGroupAddRecipe(mainGroup, recipeID, i, true)
 						end
+
 
 
 						local cd = GetTradeSkillCooldown(i)
@@ -603,36 +624,17 @@ DebugSpam("done parsing skill list")
 						recipe[i] = recipeID
 						difficulty[i] = skillType
 
---						skillData[i] = { id = recipeID, difficulty = skilltype, color = skillTypeStyle[skillType] }
---[[
-		--					skillData[i].name = skillName
-						skillData[i].id = recipeID
-						skillData[i].difficulty = skillType
-						skillData[i].color = skillTypeStyle[skillType]
-		--				skillData[i].category = lastHeader
-]]
-
 						if cd then
 							cooldown[i] = cd + time()
-
---							skillData[i].cooldown = cd + time()		-- this is when your cooldown will be up
 
 --							skillDBString = skillDBString.." cd=" .. cd + time()
 -- TODO: SaveCooldown info
 						end
 
 
-						skillIndexLookup[player][recipeID] = i
+						skillIndexLookup[recipeID] = i
 
 						if not results[recipeID] or recacheRecipe[recipeID] then
-
-
---							data.recipeDB[recipeID].craftable = localPlayer
-
---							local recipe = data.recipeDB[recipeID]
-
---							recipe.tradeID = tradeID
-
 							local itemLink = GetTradeSkillItemLink(i)
 
 							if not itemLink then
@@ -682,10 +684,6 @@ DebugSpam("done parsing skill list")
 							tradeIDs[recipeID] = tradeID
 							results[recipeID] = { [itemID] = numMade }
 
---							GnomeWorksDB.recipeDB[recipeID] = { tradeID = tradeID, itemID = itemID, numMade = numMade, reagentData = reagentData }
-
---							recipe.reagentData = reagentData
-
 							if gotNil then
 								recacheRecipe[recipeID] = true
 							end
@@ -703,15 +701,20 @@ DebugSpam("done parsing skill list")
 		end
 
 
-	--	Skillet:RecipeGroupConstructDBString(mainGroup)
+
 
 --	DebugSpam("Scan Complete")
 
 
 
-		GnomeWorks:InventoryScan()
+		self:InventoryScan()
+
+		self:ScanSlotGroups(slotGroup)
 
 
+--		self:RecipeGroupConstructDBString(mainGroup)
+--		self:RecipeGroupConstructDBString(flatGroup)
+--		self:RecipeGroupConstructDBString(slotGroup)
 
 		self.scanInProgress = false
 
@@ -722,16 +725,118 @@ DebugSpam("done parsing skill list")
 		if numHeaders > 0 then
 			dataScanned[key] = true
 		else
-			GnomeWorks:ScheduleTimer("ScanTrade",5)
+			self:ScheduleTimer("ScanTrade",5)
 		end
 
 
-		GnomeWorks:ScheduleTimer("UpdateMainWindow",.1)
-		GnomeWorks:SendMessageDispatch("GnomeWorksScanComplete")
-		GnomeWorks:SendMessageDispatch("GnomeWorksDetailsChanged")
+		self:ScheduleTimer("UpdateMainWindow",.1)
+		self:SendMessageDispatch("GnomeWorksScanComplete")
+		self:SendMessageDispatch("GnomeWorksDetailsChanged")
+
+
 
 		return skillData, player, tradeID
 	end
+
+
+--[[
+	function SkilletData:EnchantingRecipeSlotAssign(recipeID, slot)
+		local recipeString = Skillet.db.account.recipeDB[recipeID]
+
+		local tradeID, itemString, reagentString, toolString = string.split(" ",recipeString)
+
+		if itemString == "0" then
+			itemString = "0:"..slot
+
+			Skillet.db.account.recipeDB[recipeID] = tradeID.." 0:"..slot.." "..reagentString.." "..toolString
+
+			Skillet:GetRecipe(recipeID)
+	--DEFAULT_CHAT_FRAME:AddMessage(Skillet.data.recipeList[recipeID].name or "noName")
+
+			Skillet.data.recipeList[recipeID].slot = slot
+		end
+	end
+
+
+
+	local invSlotLookup = {
+		["HEADSLOT"] = "HeadSlot",
+		["NECKSLOT"] = "NeckSlot",
+		["SHOULDERSLOT"] = "ShoulderSlot",
+		["CHESTSLOT"] = "ChestSlot",
+		["WAISTSLOT"] = "WaistSlot",
+		["LEGSSLOT"] = "LegsSlot",
+		["FEETSLOT"] = "FeetSlot",
+		["WRISTSLOT"] = "WristSlot",
+		["HANDSSLOT"] = "HandsSlot",
+		["FINGER0SLOT"] = "Finger0Slot",
+		["TRINKET0SLOT"] = "Trinket0Slot",
+		["BACKSLOT"] =	"BackSlot",
+		["ENCHSLOT_WEAPON"] = "MainHandSlot",
+		["ENCHSLOT_2HWEAPON"] = "MainHandSlot",
+		["SHIELDSLOT"] = "SecondaryHandSlot",
+	}
+]]
+
+
+	function GnomeWorks:ScanSlotGroups(mainGroup)
+		local groupList = {}
+
+		self:UnregisterEvent("TRADE_SKILL_UPDATE")
+
+		if mainGroup then
+
+			local TradeSkillSlots = { GetTradeSkillInvSlots() }
+
+			self:RecipeGroupClearEntries(mainGroup)
+
+			for i=1,#TradeSkillSlots do
+				local groupName
+				local slotName = TradeSkillSlots[i]
+
+				local invSlot
+
+				if groupList[slotName] then
+					groupList[slotName] = groupList[slotName]+1
+					groupName = slotName.." "..groupList[slotName]
+				else
+					groupList[slotName] = 1
+					groupName = slotName
+				end
+
+				local currentGroup = self:RecipeGroupNew(self.player, self.tradeID, "By Slot", groupName)
+
+				SetTradeSkillInvSlotFilter(i,1,1)
+
+				for s=1,GetNumTradeSkills() do
+					local recipeLink = GetTradeSkillRecipeLink(s)
+
+
+--[[
+					if TradeSkillSlots[i] ~= "NONEQUIPSLOT" then
+						invSlot = GetInventorySlotInfo(invSlotLookup[ TradeSkillSlots[i] ])
+						self:EnchantingRecipeSlotAssign(recipeID, invSlot)
+					end
+]]
+
+
+					if recipeLink then
+						local recipeID = GetIDFromLink(recipeLink)
+DebugSpam("adding "..(recipeLink or "nil").." to "..groupName)
+						self:RecipeGroupAddRecipe(currentGroup, recipeID, skillIndexLookup[recipeID], true)
+					end
+
+				end
+
+				self:RecipeGroupAddSubGroup(mainGroup, currentGroup, i, true)
+			end
+		end
+
+		SetTradeSkillInvSlotFilter(0,1,1)
+
+		self:RegisterEvent("TRADE_SKILL_UPDATE")
+	end
+
 
 
 	function GnomeWorks:GetTradeSkillRank(player, tradeID)

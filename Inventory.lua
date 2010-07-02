@@ -192,22 +192,22 @@ do
 		else -- faction-wide materials
 			local count = 0
 
-			for player, inventoryData in pairs(self.data.inventoryData) do
-				local playerData = self.data.playerData[player]
 
-				for container in string.gmatch(containerList, "%a+") do
-					if container == "vendor" then
-						if self:VendorSellsItem(itemID) then
-							return LARGE_NUMBER
-						end
-					elseif container == "craftedGuildBank" and playerData.guild then
-						if inventoryData[container] then
-							count = count + (inventoryData[container][itemID] or 0)
-						end
-					else
-						if inventoryData["craftedBank"] then
-							count = count + (inventoryData["craftedBank"][itemID] or 0)
-						end
+			for container in string.gmatch(containerList, "%a+") do
+				if container == "vendor" then
+					if self:VendorSellsItem(itemID) then
+						return LARGE_NUMBER
+					end
+				end
+
+
+				for inv, inventoryData in pairs(self.data.inventoryData) do
+					if container == "craftedGuildBank" and self.data.playerData[inv] and not self.data.playerData[inv].guild then
+						container = "craftedBank"
+					end
+
+					if inventoryData[container] then
+						count = count + (inventoryData[container][itemID] or 0)
 					end
 				end
 			end

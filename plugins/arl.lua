@@ -62,6 +62,7 @@ do
 
 				local ARLFilterParameters = {
 					{
+						name = "ARLSource",
 						text = "ARL: Filter by Recipe Source",
 						enabled = false,
 						func = function(entry)
