@@ -287,7 +287,7 @@ DebugSpam("done parsing skill list")
 			else
 				self.tradeID = tradeID
 				self.player = player
-				self.selectedSkill = 1
+--				self:SelectSkill(1)
 
 
 				self:ScheduleTimer("UpdateMainWindow",.01)
@@ -299,6 +299,8 @@ DebugSpam("done parsing skill list")
 
 
 	function GnomeWorks:SelectSkill(index)
+		self.selectedSkill = index
+
 		if unlinkableTrades[self.tradeID] then
 			self:ShowDetails(index)
 			self:ShowReagents(index)
@@ -314,7 +316,6 @@ DebugSpam("done parsing skill list")
 					SelectTradeSkill(index)
 					self:ShowDetails(index)
 					self:ShowReagents(index)
-
 					self:SkillListDraw(index)
 
 	--				self:ShowSkillList()
@@ -332,6 +333,14 @@ DebugSpam("done parsing skill list")
 
 		self:SendMessageDispatch("GnomeWorksDetailsChanged")
 	end
+
+
+	function GnomeWorks:SelectEntry(entry)
+		self.selectedEntry = entry
+		self:SelectSkill(entry.index)
+	end
+
+
 
 	local function DoRecipeSelection(recipeID)
 --		local player = GnomeWorks.player
@@ -383,7 +392,7 @@ DebugSpam("done parsing skill list")
 				self:OpenTradeLink(self:GetTradeLink(tradeID, player), player)
 			end
 
-			GnomeWorks:RegisterMessageDispatch("GnomeWorksScanComplete", function() DoRecipeSelection(recipeID) end)
+			GnomeWorks:RegisterMessageDispatch("GnomeWorksScanComplete", function() DoRecipeSelection(recipeID) return true end)			-- return true = fire once
 		else
 			DoRecipeSelection(recipeID)
 		end
@@ -392,7 +401,7 @@ DebugSpam("done parsing skill list")
 
 
 	function GnomeWorks:PushSelection()
-		local newEntry = { player = self.player, tradeID = self.tradeID, skill = self.selectedSkill }
+		local newEntry = { player = self.player, tradeID = self.tradeID, entry = self.selectedEntry }
 
 		table.insert(self.data.selectionStack, newEntry)
 	end
@@ -403,7 +412,7 @@ DebugSpam("done parsing skill list")
 		local lastEntry = #stack
 
 		if lastEntry>0 then
-			local player,tradeID,skill = stack[lastEntry].player, stack[lastEntry].tradeID, stack[lastEntry].skill
+			local player,tradeID,entry = stack[lastEntry].player, stack[lastEntry].tradeID, stack[lastEntry].entry
 --print(player,tradeID,skill)
 			if tradeID ~= self.tradeID then
 				if player == (UnitName("player")) then
@@ -413,9 +422,9 @@ DebugSpam("done parsing skill list")
 				end
 
 
-				GnomeWorks:RegisterMessageDispatch("GnomeWorksScanComplete", function() GnomeWorks:SelectSkill(skill) end)
+				GnomeWorks:RegisterMessageDispatch("GnomeWorksScanComplete", function() GnomeWorks:SelectEntry(entry) return true end)
 			else
-				self:SelectSkill(skill)
+				self:SelectEntry(entry)
 			end
 
 			stack[lastEntry] = nil
@@ -479,12 +488,14 @@ DebugSpam("done parsing skill list")
 		self.tradeID = tradeID
 		self.player = player
 
+--[[
 		if self.selectedSkill == nil or self.selectedSkill > GetNumTradeSkills() then
-			self.selectedSkill = GetFirstTradeSkill()
+			self:SelectSkill(GetFirstTradeSkill())
 		end
 
-		GnomeWorks.skillFrame.scrollFrame.selectedIndex = self.selectedSkill
 
+		GnomeWorks.skillFrame.scrollFrame.selectedIndex = self.selectedSkill
+]]
 
 		if not recacheRecipe then
 			recacheRecipe = {}
@@ -536,7 +547,10 @@ DebugSpam("done parsing skill list")
 		local lastHeader = nil
 		local gotNil = false
 
+
+
 		local currentGroup = nil
+
 
 		local mainGroup = self:RecipeGroupNew(player,tradeID,"By Category")
 
@@ -731,7 +745,7 @@ DebugSpam("done parsing skill list")
 
 		self:ScheduleTimer("UpdateMainWindow",.1)
 		self:SendMessageDispatch("GnomeWorksScanComplete")
-		self:SendMessageDispatch("GnomeWorksDetailsChanged")
+--		self:SendMessageDispatch("GnomeWorksDetailsChanged")
 
 
 

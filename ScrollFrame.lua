@@ -300,8 +300,9 @@ do
 	end
 
 
-	local function FilterData(scrollFrame, data, depth, map, index)
+	local function FilterData(scrollFrame, data, depth, index)
 		local num = 0
+		local map = scrollFrame.dataMap
 
 		if data and data.entries and map then
 			local numEntries = data.numEntries or #data.entries
@@ -313,7 +314,7 @@ do
 					if entry.subGroup.numVisible>0 then
 						if scrollFrame.childrenFirst then
 							if entry.subGroup.expanded then
-								num = num + FilterData(scrollFrame, entry.subGroup, depth+1, map, num+index)
+								num = num + FilterData(scrollFrame, entry.subGroup, depth+1, num+index)
 							end
 
 							map[num+index] = entry
@@ -327,7 +328,7 @@ do
 							num = num +1
 
 							if entry.subGroup.expanded then
-								num = num + FilterData(scrollFrame, entry.subGroup, depth+1, map, num+index)
+								num = num + FilterData(scrollFrame, entry.subGroup, depth+1, num+index)
 							end
 						end
 					elseif entry.noHide then
@@ -387,7 +388,7 @@ do
 		end
 
 		scrollFrame:SortData(scrollFrame.data)
-		scrollFrame.numData = scrollFrame:FilterData(scrollFrame.data, 0, scrollFrame.dataMap, 1)
+		scrollFrame.numData = scrollFrame:FilterData(scrollFrame.data, 0, 1)
 		scrollFrame:Draw()
 	end
 

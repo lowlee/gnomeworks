@@ -69,8 +69,6 @@ do
 	local detailsOpen
 
 
-	local textFilter
-
 
 	local playerSelectMenu
 	local pluginMenu
@@ -595,7 +593,7 @@ do
 									entry.subGroup.expanded = not entry.subGroup.expanded
 									sf:Refresh()
 								else
-									GnomeWorks:SelectSkill(entry.index)
+									GnomeWorks:SelectEntry(entry)
 									sf:Draw()
 								end
 							else
@@ -1049,11 +1047,22 @@ do
 
 
 	function GnomeWorks:ScanComplete()
-		local index = self.selectedSkill
+		local player = self.player
+		local tradeID = self.tradeID
 
-		self:SendMessageDispatch("GnomeWorksDetailsChanged")
+
+		self:ShowSkillList()
+
+		for i=1,#sf.dataMap do
+			if not sf.dataMap[i].subGroup then
+				self:SelectEntry(sf.dataMap[i])
+				break
+			end
+		end
 
 		ResizeMainWindow()
+
+		self:SendMessageDispatch("GnomeWorksDetailsChanged")
 	end
 
 
@@ -1090,7 +1099,7 @@ do
 		local tradeID = self.tradeID
 
 		if player and tradeID then
-			local key = player..":"..tradeID
+--			local key = player..":"..tradeID
 
 			local group = self:RecipeGroupFind(player, tradeID, self.groupLabel or "By Category", self.group)
 
@@ -1103,7 +1112,7 @@ do
 
 	function GnomeWorks:SkillListDraw(selected)
 		sf.selectedIndex = selected or self.selectedSkill
-		self.selectedSkill = selected
+--		self.selectedSkill = selected
 		sf:Draw()
 	end
 
@@ -1140,11 +1149,11 @@ do
 	end
 
 	function GnomeWorks:SetFilterText(text)
-		textFilter = string.lower(text)
+		local textFilter = string.lower(text)
 
 		if (text ~= "") then
 			searchTextParameters.enabled = true
-			searchTextParameters.arg = text
+			searchTextParameters.arg = textFilter
 		else
 			searchTextParameters.enabled = false
 			searchTextParameters.arg = ""
@@ -1256,9 +1265,10 @@ do
 	end
 
 
+
 	function GnomeWorks:CreateControlFrame(frame)
 		local function MaterialsOnHand(button)
-			local entry = sf.dataMap[GnomeWorks.selectedSkill]
+			local entry = self.selectedEntry
 
 			if entry then
 				if entry.craftable then
@@ -1271,7 +1281,8 @@ do
 
 
 		local function MaterialsOnAlt(button)
-			local entry = sf.dataMap[GnomeWorks.selectedSkill]
+
+			local entry = self.selectedEntry
 
 			if entry then
 				if entry.alt and entry.alt >= 1 then
@@ -1279,6 +1290,7 @@ do
 					return
 				end
 			end
+
 			button:Disable()
 		end
 
@@ -1292,13 +1304,14 @@ do
 
 		local function AddToQueue(button)
 			local numItems = button.count
+			local entry = self.selectedEntry
 
-			local recipeLink = self:GetTradeSkillRecipeLink(GnomeWorks.selectedSkill)
+--			local recipeLink = self:GetTradeSkillRecipeLink(GnomeWorks.selectedSkill)
 
-			local recipeID = tonumber(string.match(recipeLink, "enchant:(%d+)"))
+--			local recipeID = tonumber(string.match(recipeLink, "enchant:(%d+)"))
 
 			if not numItems then
-				local entry = sf.dataMap[GnomeWorks.selectedSkill]
+
 
 				local _, _, _, _, _, _, _, itemStackCount = GetItemInfo(next(GnomeWorksDB.results[recipeID]))
 
@@ -1323,7 +1336,7 @@ do
 				end
 			end
 
-			GnomeWorks:AddToQueue(GnomeWorks.player, GnomeWorks.tradeID, recipeID, numItems)
+			GnomeWorks:AddToQueue(GnomeWorks.player, GnomeWorks.tradeID, entry.recipeID, numItems)
 		end
 
 		local function PopRecipe()
@@ -1513,6 +1526,7 @@ do
 		controlFrame:SetWidth(position)
 
 		GnomeWorks:RegisterMessageDispatch("GnomeWorksDetailsChanged", function()
+--			sf:Draw()
 			for i, b in pairs(buttons) do
 				if b.validate then
 					b:validate()
@@ -1698,7 +1712,6 @@ do
 		self.SelectTradeLink = SelectTradeLink
 
 
-		textFilter = nil
 
 
 		table.insert(UISpecialFrames, "GnomeWorksFrame")
