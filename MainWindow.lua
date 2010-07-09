@@ -1317,7 +1317,7 @@ do
 			if not numItems then
 
 
-				local _, _, _, _, _, _, _, itemStackCount = GetItemInfo(next(GnomeWorksDB.results[recipeID]))
+				local _, _, _, _, _, _, _, itemStackCount = GetItemInfo(next(GnomeWorksDB.results[entry.recipeID]))
 
 				if entry.alt < 1 then
 					numItems = itemStackCount
