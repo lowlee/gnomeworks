@@ -98,9 +98,9 @@ do
 			DeleteRecipe(itemID)
 			CreateProcessButton()
 	]]
-	function GnomeWorks:GetQueue(player)
-		-- to be implemented
-	end
+--	function GnomeWorks:GetQueue(player)
+--		return self.data.queue
+--	end
 
 end
 

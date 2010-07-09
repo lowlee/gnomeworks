@@ -83,29 +83,31 @@ do
 	end
 
 
-	function GnomeWorks:SendMessageDispatch(message)
-		if dispatchTable[message] then
-			t = dispatchTable[message]
+	function GnomeWorks:SendMessageDispatch(messageList)
+		for message in string.gmatch(messageList, "%a+") do
+			if dispatchTable[message] then
+				t = dispatchTable[message]
 
-			for k,func in pairs(t) do
-				if func ~= "delete" then
-					if type(func) == "function" and func() then					-- message returns true when it's set to fire once
-						t[k] = "delete"
-					elseif type(func) == "string" and GnomeWorks[func](GnomeWorks) then
-						t[k] = "delete"
+				for k,func in pairs(t) do
+					if func ~= "delete" then
+						if type(func) == "function" and func() then					-- message returns true when it's set to fire once
+							t[k] = "delete"
+						elseif type(func) == "string" and GnomeWorks[func](GnomeWorks) then
+							t[k] = "delete"
+						end
 					end
 				end
-			end
 
-			local s,e = 1,#t
+				local s,e = 1,#t
 
-			while s <= e do
-				if t[s] == "delete" then
-					t[s] = t[e]
-					t[e] = nil
-					e = e - 1
-				else
-					s = s + 1
+				while s <= e do
+					if t[s] == "delete" then
+						t[s] = t[e]
+						t[e] = nil
+						e = e - 1
+					else
+						s = s + 1
+					end
 				end
 			end
 		end
@@ -355,6 +357,8 @@ do
 		GnomeWorks.data.selectionStack = {}
 
 		GnomeWorks:ConstructPseudoTrades("All Recipes")
+
+		GnomeWorks:PopulateQueues()
 
 
 		GnomeWorks.groupLabel = "By Category"

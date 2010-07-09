@@ -98,7 +98,9 @@ do
 								end
 							end
 						end,
-
+			OnLeave =	function()
+							GameTooltip:Hide()
+						end,
 			OnClick = function(cellFrame, button, source)
 				if cellFrame:GetParent().rowIndex==0 then
 					columnControl(cellFrame, button, source)
@@ -256,7 +258,7 @@ do
 							end
 
 							if entry.reserved>0 then
-								display = string.format("%s %s+%d",display, "|cffff0000", entry.reserved)
+								display = string.format("%s %s-%d",display, "|cffff0000", entry.reserved)
 							end
 
 							cellFrame.text:SetText(display)
@@ -376,12 +378,13 @@ do
 			local guildBank = GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "craftedGuildBank queue")
 			local alt = GnomeWorks:GetInventoryCount(entry.id, "faction", "craftedBank queue")
 
-			entry.bag = bag
-			entry.bank = bank
-			entry.guildBank = guildBank
-			entry.alt = alt
 
 			entry.reserved = math.abs(math.min(0,GnomeWorks:GetInventoryCount(entry.id, GnomeWorks.player, "queue")))
+
+			entry.bag = bag + entry.reserved
+			entry.bank = bank + entry.reserved
+			entry.guildBank = guildBank + entry.reserved
+			entry.alt = alt + entry.reserved
 
 
 			local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo(entry.id)
@@ -405,6 +408,7 @@ do
 
 
 		GnomeWorks:RegisterMessageDispatch("GnomeWorksDetailsChanged", function()
+--print(GetTime(), "details changed")
 			GnomeWorks:ShowReagents(GnomeWorks.selectedSkill)
 		end)
 

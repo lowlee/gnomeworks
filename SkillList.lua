@@ -341,6 +341,11 @@ DebugSpam("done parsing skill list")
 	end
 
 
+	function GnomeWorks:ResetSkillSelect()
+		self.selectedEntry = nil
+	end
+
+
 
 	local function DoRecipeSelection(recipeID)
 --		local player = GnomeWorks.player

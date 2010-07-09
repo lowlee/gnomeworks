@@ -1053,10 +1053,12 @@ do
 
 		self:ShowSkillList()
 
-		for i=1,#sf.dataMap do
-			if not sf.dataMap[i].subGroup then
-				self:SelectEntry(sf.dataMap[i])
-				break
+		if not self.selectedEntry then
+			for i=1,#sf.dataMap do
+				if not sf.dataMap[i].subGroup then
+					self:SelectEntry(sf.dataMap[i])
+					break
+				end
 			end
 		end
 
@@ -1087,6 +1089,8 @@ do
 
 			self.blizzardFrameShow()
 		else
+			self:ResetSkillSelect()
+
 			frame:Show()
 			frame.title:Show()
 			sf:Show()
@@ -1473,13 +1477,13 @@ do
 
 					newButton:SetNumeric(true)
 
---					newButton:SetScript("OnEnterPressed", EditBox_ClearFocus)
+					newButton:SetScript("OnEnterPressed", EditBox_ClearFocus)
 					newButton:SetScript("OnEscapePressed", EditBox_ClearFocus)
 					newButton:SetScript("OnEditFocusLost", EditBox_ClearHighlight)
 					newButton:SetScript("OnEditFocusGained", EditBox_HighlightText)
 
 
-					newButton:SetScript("OnEnterPressed", function(f)
+					newButton:SetScript("OnTextChanged", function(f)
 						local n = f:GetNumber()
 
 						if n<=0 then
@@ -1492,7 +1496,7 @@ do
 							buttons[2].count = n
 						end
 
-						EditBox_ClearFocus(f)
+--						EditBox_ClearFocus(f)
 					end)
 
 					newButton:SetJustifyH("CENTER")
