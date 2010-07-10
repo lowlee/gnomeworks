@@ -121,12 +121,14 @@ do
 										GameTooltip:AddLine(select(2,GetItemInfo(entry.itemID)))
 
 										local required = entry.numNeeded
-										local deficit = entry.inQueue
+										local deficit = entry.count
 
 										if entry.command == "create" then
-											local required = entry.inQueue
-											local deficit = entry.numNeeded
+											deficit = entry.count * entry.results[entry.itemID]
 										end
+
+										local inQueue = deficit + entry.bag - entry.numNeeded
+
 
 										if required>0 then
 											local prevCount = 0
@@ -155,15 +157,17 @@ do
 												end
 											end
 
+											if inQueue > 0 then
+												GameTooltip:AddDoubleLine("|cffff8000reserved",inQueue)
+											end
+
 											if prevCount == 0 then
 	--												GameTooltip:AddLine("None available")
 											end
 
 											if prevCount ~= 0 then
-												if deficit < 0 then
-													GameTooltip:AddDoubleLine("|cffff0000total deficit:",math.abs(deficit))
-												elseif deficit > 0 then
-													GameTooltip:AddDoubleLine("|cfffffffftotal surplus:",deficit)
+												if deficit > 0 then
+													GameTooltip:AddDoubleLine("|cffff0000total deficit:",deficit)
 												end
 											end
 										end
@@ -197,13 +201,16 @@ do
 								cellFrame.text:SetTextColor(1,1,1)
 							end
 
+							cellFrame.text:SetText(entry.count)
+--[[
 							if entry.command == "purchase" then
-								cellFrame.text:SetText(entry.numNeeded)
+								cellFrame.text:SetText(entry.count)
 							elseif entry.command == "process" or entry.command == "create" then
 								cellFrame.text:SetText(entry.count)
 							else
 								cellFrame.text:SetText("")
 							end
+]]
 						end,
 		}, -- [1]
 		{
@@ -359,14 +366,17 @@ do
 			local reagents = entry.reagents
 
 			for k,reagent in ipairs(entry.subGroup.entries) do
-				local numNeeded = reagents[reagent.itemID] * count
+				local numNeeded = (reagents and reagents[reagent.itemID] or 1) * count
 
 				if reagent.numNeeded then
 					reagent.numNeeded = numNeeded
+					reagent.count = numNeeded
 				end
 
 				if reagent.results then
 					reagent.count = math.ceil(numNeeded / reagent.results[reagent.itemID])
+
+					reagent.numCraftable = GnomeWorks:InventoryRecipeIterations(reagent.recipeID, player, "bag queue")
 				end
 
 				AdjustQueueCounts(player, reagent)
@@ -433,37 +443,43 @@ do
 					end
 				elseif entry.command == "purchase" then
 					local numAvailable = GnomeWorks:GetInventoryCount(entry.itemID, player, "bag queue")
-					local inQueue = math.min(entry.numNeeded, numAvailable)
+					local inQueue = math.max(0,math.min(entry.numNeeded, numAvailable))
 
-					entry.numNeeded = entry.numNeeded - inQueue
-
+					entry.count = entry.count - inQueue
 --					GnomeWorks:ReserveItemForQueue(player, entry.itemID, entry.numNeeded)
 
 				elseif entry.command == "options" then
 					local numAvailable = GnomeWorks:GetInventoryCount(entry.itemID, player, "bag queue")
 					local inQueue = math.min(entry.numNeeded, numAvailable)
 
-					entry.numNeeded = entry.numNeeded - inQueue
+					entry.count = entry.count - inQueue
 
+					AdjustQueueCounts(player, entry)
+
+--[[
 					for k,option in pairs(entry.subGroup.entries) do
 						local count = math.ceil(entry.numNeeded / option.results[option.itemID])
 
-						local reagents = entry.reagents
+						local reagents = option.reagents
 
-						for k,reagent in ipairs(entry.subGroup.entries) do
+						for k,reagent in ipairs(option.subGroup.entries) do
 							local numNeeded = reagents[reagent.itemID] * count
 
 							if reagent.numNeeded then
 								reagent.numNeeded = numNeeded
+								reagent.count = numNeeded
 							end
 
-							if reagent.count then
+							if reagent.results then
 								reagent.count = math.ceil(numNeeded / reagent.results[reagent.itemID])
 							end
 
 							AdjustQueueCounts(player, reagent)
 						end
 					end
+]]
+
+
 				end
 
 			end
@@ -516,7 +532,7 @@ do
 --			if true then return false end
 
 --print("filter", entry.command, GetItemInfo(entry.itemID), entry.numAvailable, entry.count, entry.numNeeded)
-			if entry.command == "purchase" and entry.numNeeded < 1 then
+			if entry.command == "purchase" and entry.count < 1 then
 				return true
 			elseif (entry.command == "process" or entry.command == "create") and entry.count < 1 then
 				return true
@@ -719,30 +735,44 @@ do
 				local cooldownGroup = GnomeWorks:GetSpellCooldownGroup(recipeID)
 
 				if GnomeWorks:IsSpellKnown(recipeID, player) and not cooldownUsed[cooldownGroup] then
-					local count = math.ceil(numNeeded / numMade)
-
-					local queueEntry = {
-						index = #queue.subGroup.entries+1,
-						recipeID = recipeID,
-						count = count,
-
-						itemID = reagentID,
-						numNeeded = numNeeded,
-
-						command = "create",
-
-						tradeID = tradeIDs[recipeID],
-						results = results[recipeID],
-						reagents = reagents[recipeID],
-					}
-
-					table.insert(craftOptions, queueEntry)
+					local recursive
 
 					if reagents[recipeID] then
-						queueEntry.subGroup = {expanded = false, entries = {} }
-
 						for reagentID,numNeeded in pairs(reagents[recipeID]) do
-							AddToConstructionQueue(queueEntry, reagentID, numNeeded * count, player)
+							if recursionLimiter[reagentID] then
+								recursive = true
+								break
+							end
+						end
+					end
+
+					if not recursive then
+
+						local count = math.ceil(numNeeded / numMade)
+
+						local queueEntry = {
+							index = #queue.subGroup.entries+1,
+							recipeID = recipeID,
+							count = count,
+
+							itemID = reagentID,
+							numNeeded = numNeeded,
+
+							command = "create",
+
+							tradeID = tradeIDs[recipeID],
+							results = results[recipeID],
+							reagents = reagents[recipeID],
+						}
+
+						table.insert(craftOptions, queueEntry)
+
+						if reagents[recipeID] then
+							queueEntry.subGroup = {expanded = false, entries = {} }
+
+							for reagentID,numNeeded in pairs(reagents[recipeID]) do
+								AddToConstructionQueue(queueEntry, reagentID, numNeeded * count, player)
+							end
 						end
 					end
 				end
@@ -761,7 +791,7 @@ do
 
 --print("crafting options for", (GetItemInfo(reagentID)), #craftOptions)
 			if #craftOptions>1 then
-				local optionGroup = { index = 1, command = "options", itemID = reagentID, numNeeded = inQueue, subGroup = { entries = {}, expanded = false }}
+				local optionGroup = { index = 1, command = "options", itemID = reagentID, numNeeded = numNeeded, count = numNeeded, subGroup = { entries = {}, expanded = false }}
 
 				table.insert(queue.subGroup.entries, optionGroup)
 
@@ -771,7 +801,7 @@ do
 			elseif #craftOptions>0 then
 				table.insert(queue.subGroup.entries, craftOptions[1])
 			else
-print("can't craft", (GetItemInfo(reagentID)))
+--print("can't craft", (GetItemInfo(reagentID)))
 
 				local newEntry = {
 					index = #queue+1,

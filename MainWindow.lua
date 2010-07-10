@@ -1546,6 +1546,8 @@ do
 	function GnomeWorks:CreateMainWindow()
 		frame = self.Window:CreateResizableWindow("GnomeWorksFrame", "GnomeWorks (r"..VERSION..")", 600, 400, ResizeMainWindow, GnomeWorksDB.config)
 
+		frame:Hide()
+
 		frame:SetMinResize(500,400)
 
 		local rightSideWidth = 300

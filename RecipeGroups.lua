@@ -751,7 +751,6 @@ do
 
 		local entry = {}
 
-
 		if entries and level then
 			for i=1,#entries do
 				if entries[i].subGroup then

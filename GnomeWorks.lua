@@ -386,7 +386,7 @@ do
 
 		GnomeWorks.QueueWindow = GnomeWorks:CreateQueueWindow()
 
-		GnomeWorks.MainWindow:Hide()
+--		GnomeWorks.MainWindow:Hide()
 
 
 		-- reset filters
@@ -434,30 +434,25 @@ do
 		GnomeWorks:TRADE_SKILL_UPDATE()
 	end
 
---[[
-	local eventFrame = CreateFrame("Frame")
-
-	eventFrame:RegisterAllEvents()
-
-	eventFrame:SetScript("OnEvent", function(frame, event, ...) if string.match(event, "SKILL") then print(event, ...) end end)
-
---	GetNumSkillLines()
-]]
-
-
 
 	if not IsAddOnLoaded("AddOnLoader") then
 		GnomeWorks:RegisterEvent("ADDON_LOADED", function(event, name)
 			if name == "GnomeWorks" then
 				GnomeWorks:UnregisterEvent(event)
-				GnomeWorks:ScheduleTimer("OnLoad",.01)
-			end
-		end )
+--				GnomeWorks:ScheduleTimer("OnLoad",.01)
+				GnomeWorks:OnLoad()
 
-		GnomeWorks:RegisterEvent("TRADE_SKILL_SHOW", function()
-			GnomeWorks:UnregisterEvent("TRADE_SKILL_SHOW")
-			GnomeWorks:ScheduleTimer("OnTradeSkillShow",.01)
---			GnomeWorks:OnLoad()
+				local function Init(event)
+					GnomeWorks:UnregisterEvent("TRADE_SKILL_UPDATE")
+					GnomeWorks:UnregisterEvent("TRADE_SKILL_OPEN")
+		--			GnomeWorks:ScheduleTimer("OnTradeSkillShow",.01)
+		--			GnomeWorks:OnLoad()
+					GnomeWorks:Initialize()
+					GnomeWorks[event](GnomeWorks)
+				end
+				GnomeWorks:RegisterEvent("TRADE_SKILL_UPDATE", Init)
+				GnomeWorks:RegisterEvent("TRADE_SKILL_SHOW", Init)
+			end
 		end )
 	else
 		GnomeWorks:RegisterEvent("ADDON_LOADED", function(event, name)
@@ -466,6 +461,7 @@ do
 --				GnomeWorks:ScheduleTimer("OnLoad",1)
 				GnomeWorks:OnLoad()
 				GnomeWorks:Initialize()
+				GnomeWorks.MainWindow:Hide()
 				GnomeWorks:UnregisterEvent(event)
 			end
 		end)
